@@ -8,6 +8,12 @@
 [![LLM Agent](https://img.shields.io/badge/LLM%20Agent-Function%20Calling-4B0082)](https://platform.openai.com/docs/guides/function-calling)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+## 🖼️ 演示
+
+![仪表盘演示](docs/screenshots/dashboard-demo.png)
+
+> 仪表盘首页：实时收支汇总 · 分类支出分布 · 消费趋势分析 · 现金流预测
+
 ---
 
 ## ✨ 项目亮点
