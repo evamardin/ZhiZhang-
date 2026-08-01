@@ -1,0 +1,1009 @@
+{% extends "base.html" %}
+
+{% block title %}待分类确认 - 财务助手{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <h2>待分类交易确认</h2>
+
+        <!-- AI 识别面板 -->
+        <div class="card" style="background: #ebf8ff; border: 1px solid #bee3f8; margin-bottom: 16px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+                <span>
+                    <strong>AI 智能识别</strong>
+                    <span style="color: #718096; font-size: 13px; margin-left: 8px;">自动建议分类，识别周期性固定支出</span>
+                </span>
+                <button class="btn" id="btn-ai-suggest" onclick="runAISuggest()">
+                    🧠 开始识别
+                </button>
+                <button class="btn btn-success" id="btn-ai-accept-all" onclick="acceptAllAISuggestions()" style="display: none; margin-left: 8px;">
+                    ✅ 一键接受所有分类建议
+                </button>
+                <button class="btn" id="btn-ai-apply-tags" onclick="applyAllAITags()" style="display: none; margin-left: 8px; background:#e6fffa;color:#234e52;">
+                    🏷️ 应用所有标签建议
+                </button>
+                <button class="btn" id="btn-ai-accept-all-complete" onclick="acceptAllAIComplete()" style="display: none; margin-left: 8px; background:linear-gradient(135deg,#2b6cb0,#2c5282);color:#fff;font-weight:600;">
+                    ✅ 一键确认所有（分类+标签）
+                </button>
+            </div>
+            <div id="ai-status" style="display: none; margin-top: 8px; font-size: 14px; color: #2b6cb0;">
+                <span id="ai-status-text">正在分析中...</span>
+            </div>
+        </div>
+
+        <!-- 账期提示（跟随全局账期条） -->
+        <div class="action-group" style="margin-top: 12px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <span style="color: #2d3748; font-size: 14px;">📅 当前账期：</span>
+                <strong id="pending-range-label" style="color: #2b6cb0; font-size: 14px;"></strong>
+                <span style="color: #718096; font-size: 13px;">在上方账期条选择范围，本页只显示该期间的待分类交易</span>
+            </div>
+        </div>
+
+        <!-- 批量操作栏 -->
+        <div class="action-group" style="margin-top: 12px;">
+            <div class="form-group">
+                <label for="batch-category">批量设置分类</label>
+                <select id="batch-category">
+                    <option value="">请选择</option>
+                    <option value="餐饮">餐饮</option>
+                    <option value="交通">交通</option>
+                    <option value="日用百货">日用百货</option>
+                    <option value="购物">购物</option>
+                    <option value="娱乐">娱乐</option>
+                    <option value="学习">学习</option>
+                    <option value="住房">住房</option>
+                    <option value="医疗健康">医疗健康</option>
+                    <option value="旅行">旅行</option>
+                    <option value="通讯">通讯</option>
+                    <option value="转账">转账</option>
+                    <option value="退款">退款</option>
+                    <option value="投资">投资</option>
+                    <option value="其他">其他</option>
+                    <option value="__new__">＋新建分类…</option>
+                </select>
+            </div>
+            <button class="btn btn-success" id="btn-batch-confirm" disabled>确认选中</button>
+            <button class="btn" id="btn-all-set">全部设置为</button>
+        </div>
+
+        <!-- 固定支出候选区域 -->
+        <div id="fixed-candidates-section" style="display: none; margin-bottom: 16px;">
+            <div class="card" style="background: #fffaf0; border: 1px solid #feebc8;">
+                <h3>📋 疑似固定支出 — 点击确认后自动添加至固定收支表</h3>
+                <p style="color: #718096; font-size: 13px; margin-bottom: 12px;">
+                    以下交易在多个月份重复出现，可能是每月的固定支出/收入。
+                </p>
+                <div id="fixed-candidates-list"></div>
+            </div>
+        </div>
+
+        <!-- 待分类交易表格 -->
+        <div class="table-wrapper">
+            <table class="table" id="pending-table">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell"><input type="checkbox" id="select-all"></th>
+                        <th>时间</th>
+                        <th>商户</th>
+                        <th>描述</th>
+                        <th>金额</th>
+                        <th>来源</th>
+                        <th>AI 建议</th>
+                        <th>分类</th>
+                        <th>标签</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="pending-body">
+                    <tr><td colspan="10" class="empty-state">暂无待分类交易</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination" id="pagination">
+            <button class="btn btn-sm" id="btn-prev" disabled>上一页</button>
+            <span class="page-info" id="page-info">第 1 页，共 1 页</span>
+            <button class="btn btn-sm" id="btn-next" disabled>下一页</button>
+        </div>
+    </div>
+
+    <!-- 固定支出确认弹窗 -->
+    <div id="fixed-confirm-dialog" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: center; justify-content: center;">
+        <div class="card" style="max-width: 500px; width: 90%;">
+            <h3>确认设为固定支出</h3>
+            <p style="color: #718096; font-size: 14px; margin-bottom: 12px;" id="fixed-dialog-info"></p>
+            <div class="form-row" style="flex-direction: column; gap: 8px;">
+                <div class="form-group">
+                    <label>固定金额</label>
+                    <input type="number" id="fixed-dialog-amount" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>每月几号</label>
+                    <input type="number" id="fixed-dialog-day" min="1" max="31">
+                </div>
+                <div class="form-group">
+                    <label>分类</label>
+                    <select id="fixed-dialog-category">
+                        <option value="餐饮">餐饮</option>
+                        <option value="交通">交通</option>
+                        <option value="日用百货">日用百货</option>
+                        <option value="购物">购物</option>
+                        <option value="娱乐">娱乐</option>
+                        <option value="学习">学习</option>
+                        <option value="住房">住房</option>
+                        <option value="医疗健康">医疗健康</option>
+                        <option value="旅行">旅行</option>
+                        <option value="通讯">通讯</option>
+                        <option value="转账">转账</option>
+                        <option value="退款">退款</option>
+                        <option value="投资">投资</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px;">
+                    <button class="btn" id="btn-cancel-fixed">取消</button>
+                    <button class="btn btn-success" id="btn-confirm-fixed">确认添加</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 当前状态
+    let currentPage = 1;
+    const perPage = 50;
+    let aiSuggestions = [];      // AI 建议列表
+    let fixedCandidates = [];    // 固定支出候选列表
+    let pendingFixedDialog = null; // 当前弹窗上下文
+    let allTags = [];  // 全局标签列表
+
+    /**
+     * 当前生效的账期（跟随全局账期条）
+     * @returns {object|null} 返回 { start, end }（YYYY-MM-DD），null 表示全部
+     */
+    function currentRange() {
+        return getGlobalDateRange();
+    }
+
+    // 加载所有标签
+    async function loadAllTags() {
+        try {
+            const res = await fetch('/api/tags');
+            allTags = await res.json();
+        } catch (e) {
+            console.error('加载标签失败:', e);
+        }
+    }
+
+    // 给交易添加一个标签（下拉选择）
+    async function addTagToTxn(txnId, selectEl) {
+        let tagName = selectEl.value;
+        if (!tagName) return;
+        if (tagName === '__new__') {
+            const newName = await showPromptModal('新建标签', '输入标签名称，如：项目、工作餐、报销');
+            if (!newName) { selectEl.value = ''; return; }
+            try {
+                await jsonRequest('/api/tags', 'POST', { name: newName });
+                await loadAllTags();
+                selectEl.value = newName;
+                tagName = newName;
+            } catch (err) {
+                showAlert('创建标签失败: ' + err.message, 'error');
+                selectEl.value = '';
+                return;
+            }
+        }
+        try {
+            await jsonRequest(`/api/transactions/${txnId}/tags`, 'POST', { name: tagName });
+            showAlert('标签已添加', 'success');
+            selectEl.value = '';
+            loadPending();
+        } catch (err) {
+            showAlert('添加失败: ' + err.message, 'error');
+            selectEl.value = '';
+        }
+    }
+
+    /**
+     * 加载待分类数据（跟随全局账期）
+     */
+    async function loadPending() {
+        try {
+            let url = `/api/pending?page=${currentPage}&per_page=${perPage}`;
+            const range = currentRange();
+            if (range) url += `&start_date=${range.start}&end_date=${range.end}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            renderPending(data);
+        } catch (err) {
+            console.error('加载待分类数据失败:', err);
+        }
+    }
+
+    /**
+     * AI 智能识别
+     */
+    async function runAISuggest() {
+        const btn = document.getElementById('btn-ai-suggest');
+        const status = document.getElementById('ai-status');
+        const statusText = document.getElementById('ai-status-text');
+        btn.disabled = true;
+        status.style.display = 'block';
+        statusText.textContent = '正在调用 AI 分析待分类交易...';
+
+        try {
+            let suggestUrl = '/api/pending/suggest';
+            const range = currentRange();
+            const params = new URLSearchParams();
+            if (range) {
+                params.set('start_date', range.start);
+                params.set('end_date', range.end);
+            }
+            const qs = params.toString();
+            if (qs) suggestUrl += `?${qs}`;
+            const res = await jsonRequest(suggestUrl, 'POST', {}, false);
+            aiSuggestions = res.suggestions || [];
+            fixedCandidates = res.fixed_candidates || [];
+
+            const hasAI = aiSuggestions.some(s => s.suggested_category);
+            const hasFixed = fixedCandidates.length > 0;
+
+            if (!hasAI && !hasFixed) {
+                statusText.textContent = '没有新的建议，或 API Key 未配置。请先在设置中配置 DeepSeek API Key。';
+                status.style.color = '#e53e3e';
+            } else {
+                const msg = [];
+                const aiCount = aiSuggestions.filter(s => s.suggested_category).length;
+                if (aiCount > 0) msg.push(`AI 建议了 ${aiCount} 条分类`);
+                if (hasFixed) msg.push(`识别出 ${fixedCandidates.length} 个可能的固定支出项`);
+                statusText.textContent = msg.join('，') + '，请逐条确认↓';
+                status.style.color = '#2b6cb0';
+            }
+
+            if (hasFixed) renderFixedCandidates();
+
+            // 显示一键接受按钮
+            const acceptAllBtn = document.getElementById('btn-ai-accept-all');
+            const applyTagsBtn = document.getElementById('btn-ai-apply-tags');
+            const acceptCompleteBtn = document.getElementById('btn-ai-accept-all-complete');
+            const hasAICats = aiSuggestions.some(s => s.suggested_category);
+            const hasAITags = aiSuggestions.some(s => s.suggested_tags && s.suggested_tags.length > 0);
+            acceptAllBtn.style.display = hasAICats ? 'inline-block' : 'none';
+            applyTagsBtn.style.display = hasAITags ? 'inline-block' : 'none';
+            acceptCompleteBtn.style.display = (hasAICats || hasAITags) ? 'inline-block' : 'none';
+
+            // 重新渲染当前页，合并 AI 建议
+            let reUrl = `/api/pending?page=${currentPage}&per_page=${perPage}`;
+            const range = currentRange();
+            if (range) reUrl += `&start_date=${range.start}&end_date=${range.end}`;
+            renderPending(await fetch(reUrl).then(r => r.json()));
+        } catch (err) {
+            statusText.textContent = 'AI 分析失败: ' + err.message;
+            status.style.color = '#e53e3e';
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    /**
+     * 同步账期提示文字并刷新（全局账期变化时调用）
+     */
+    function syncPendingRange() {
+        const label = document.getElementById('pending-range-label');
+        if (!label) return;
+        const range = currentRange();
+        label.textContent = range ? `${range.start} ~ ${range.end}` : '全部数据';
+        aiSuggestions = [];
+        fixedCandidates = [];
+        currentPage = 1;
+        loadPending();
+    }
+
+    /**
+     * 尝试加载缓存 AI 建议（跨页面保持）
+     */
+    async function loadPendingSuggestCache() {
+        try {
+            const res = await fetch('/api/pending/suggest-cache');
+            const data = await res.json();
+            if (data.suggestions && data.suggestions.length > 0) {
+                aiSuggestions = data.suggestions;
+                const hasAICats = aiSuggestions.some(s => s.suggested_category);
+                const hasAITags = aiSuggestions.some(s => s.suggested_tags && s.suggested_tags.length > 0);
+                document.getElementById('btn-ai-accept-all').style.display = hasAICats ? 'inline-block' : 'none';
+                document.getElementById('btn-ai-apply-tags').style.display = hasAITags ? 'inline-block' : 'none';
+                document.getElementById('btn-ai-accept-all-complete').style.display = (hasAICats || hasAITags) ? 'inline-block' : 'none';
+                // 渲染待分类时带上建议
+                loadPending();
+            }
+        } catch (err) {
+            // 忽略，无缓存时正常加载
+        }
+    }
+
+    /**
+     * 一键接受所有 AI 分类建议
+     */
+    async function acceptAllAISuggestions() {
+        const items = aiSuggestions.filter(s => s.suggested_category && s.suggested_category !== '其他');
+        if (items.length === 0) {
+            showAlert('没有可接受的分类建议', 'error');
+            return;
+        }
+        if (!await showConfirmModal('接受分类建议', `确定要接受这 ${items.length} 条 AI 分类建议吗？\n（会跳过"其他"类，减少误判）`)) return;
+
+        const btn = document.getElementById('btn-ai-accept-all');
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '正在批量确认...';
+
+        let success = 0;
+        let failed = 0;
+        for (const item of items) {
+            try {
+                await jsonRequest(`/api/transactions/${item.id}/category`, 'PUT', { category: item.suggested_category });
+                success++;
+            } catch (e) {
+                failed++;
+            }
+        }
+
+        showAlert(`成功确认 ${success} 条${failed ? '，失败 ' + failed + ' 条' : ''}`, success > 0 ? 'success' : 'error');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        aiSuggestions = [];
+        document.getElementById('btn-ai-accept-all').style.display = 'none';
+        loadPending();
+        updatePendingBadge();
+    }
+
+    /**
+     * 一键确认所有（分类 + 标签同时完成）
+     */
+    async function acceptAllAIComplete() {
+        const withCat = aiSuggestions.filter(s => s.suggested_category && s.suggested_category !== '其他');
+        const withTags = aiSuggestions.filter(s => s.suggested_tags && s.suggested_tags.length > 0);
+        if (withCat.length === 0 && withTags.length === 0) {
+            showAlert('没有可确认的建议', 'error');
+            return;
+        }
+        let msg = '';
+        if (withCat.length > 0) msg += `接受 ${withCat.length} 条分类`;
+        if (withTags.length > 0) msg += msg ? `，添加 ${withTags.length} 笔标签` : `添加 ${withTags.length} 笔标签`;
+        msg += '\n分类会跳过"其他"类以降低误判';
+        if (!await showConfirmModal('一键确认所有建议', msg)) return;
+
+        const btn = document.getElementById('btn-ai-accept-all-complete');
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '正在一键确认...';
+
+        let catSuccess = 0;
+        let catFailed = 0;
+        let tagSuccess = 0;
+        let tagFailed = 0;
+
+        for (const item of aiSuggestions) {
+            // 批量设分类
+            if (item.suggested_category && item.suggested_category !== '其他') {
+                try {
+                    await jsonRequest(`/api/transactions/${item.id}/category`, 'PUT', { category: item.suggested_category });
+                    catSuccess++;
+                } catch (e) {
+                    catFailed++;
+                }
+            }
+            // 批量加标签
+            if (item.suggested_tags && item.suggested_tags.length > 0) {
+                try {
+                    await jsonRequest(`/api/transactions/${item.id}/tags`, 'PUT', { tags: item.suggested_tags });
+                    tagSuccess++;
+                } catch (e) {
+                    tagFailed++;
+                }
+            }
+        }
+
+        let result = [];
+        if (catSuccess > 0) result.push(`分类确认 ${catSuccess} 条`);
+        if (catFailed > 0) result.push(`分类失败 ${catFailed} 条`);
+        if (tagSuccess > 0) result.push(`标签添加 ${tagSuccess} 笔`);
+        if (tagFailed > 0) result.push(`标签失败 ${tagFailed} 笔`);
+        showAlert(result.join('；') || '无变化', (catSuccess + tagSuccess) > 0 ? 'success' : 'error');
+
+        btn.disabled = false;
+        btn.textContent = originalText;
+        aiSuggestions = [];
+        document.getElementById('btn-ai-accept-all').style.display = 'none';
+        document.getElementById('btn-ai-apply-tags').style.display = 'none';
+        document.getElementById('btn-ai-accept-all-complete').style.display = 'none';
+        loadPending();
+        updatePendingBadge();
+    }
+
+    /**
+     * 一键应用所有 AI 标签建议
+     */
+    async function applyAllAITags() {
+        const items = aiSuggestions.filter(s => s.suggested_tags && s.suggested_tags.length > 0);
+        if (items.length === 0) {
+            showAlert('没有可应用的标签建议', 'error');
+            return;
+        }
+        if (!await showConfirmModal('应用标签建议', `确定要给 ${items.length} 笔交易应用 AI 推荐的标签吗？`)) return;
+
+        const btn = document.getElementById('btn-ai-apply-tags');
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = '正在应用标签...';
+
+        let success = 0;
+        for (const item of items) {
+            try {
+                const res = await jsonRequest(`/api/transactions/${item.id}/tags`, 'GET');
+                const existing = (res.tags || []).map(t => t.name);
+                const allTags = [...new Set([...existing, ...item.suggested_tags])];
+                await jsonRequest(`/api/transactions/${item.id}/tags`, 'PUT', { tags: allTags });
+                success++;
+            } catch (e) {}
+        }
+
+        showAlert(`已给 ${success} 笔交易添加标签`, 'success');
+        btn.disabled = false;
+        btn.textContent = originalText;
+        document.getElementById('btn-ai-apply-tags').style.display = 'none';
+        loadPending();
+    }
+
+    /**
+     * 渲染固定支出候选
+     */
+    function renderFixedCandidates() {
+        const section = document.getElementById('fixed-candidates-section');
+        section.style.display = 'block';
+        const list = document.getElementById('fixed-candidates-list');
+
+        list.innerHTML = fixedCandidates.map(fc => {
+            const directionLabel = fc.direction === 'income' ? '收入' : '支出';
+            return `<div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e2e8f0;">
+                <div>
+                    <strong>${fc.merchant}</strong>
+                    <span style="color: #718096; font-size: 13px; margin-left: 8px;">
+                        ${directionLabel} ¥${(parseFloat(fc.amount)||0).toFixed(2)} · 每月 ${fc.day_of_month} 号
+                        · 出现 ${fc.occurrences} 次 / ${fc.months} 个月
+                    </span>
+                </div>
+                <button class="btn btn-sm btn-success" onclick="openFixedDialog(${fc.sample_id}, '${fc.merchant}', ${fc.amount}, ${fc.day_of_month}, '${fc.direction}')">确认固定</button>
+            </div>`;
+        }).join('');
+    }
+
+    /**
+     * 打开固定支出确认弹窗
+     */
+    function openFixedDialog(sampleId, merchant, amount, dayOfMonth, direction) {
+        pendingFixedDialog = { sampleId, merchant, amount, dayOfMonth, direction };
+        document.getElementById('fixed-dialog-info').textContent =
+            `将「${merchant}」设为每月固定${direction === 'income' ? '收入' : '支出'}，所有该商户交易归入同一分类。`;
+        document.getElementById('fixed-dialog-amount').value = amount;
+        document.getElementById('fixed-dialog-day').value = dayOfMonth;
+        document.getElementById('fixed-confirm-dialog').style.display = 'flex';
+    }
+
+    document.getElementById('btn-cancel-fixed').addEventListener('click', () => {
+        document.getElementById('fixed-confirm-dialog').style.display = 'none';
+        pendingFixedDialog = null;
+    });
+
+    document.getElementById('btn-confirm-fixed').addEventListener('click', async () => {
+        if (!pendingFixedDialog) return;
+        const { sampleId, merchant, amount, dayOfMonth, direction } = pendingFixedDialog;
+        const newAmount = parseFloat(document.getElementById('fixed-dialog-amount').value) || amount;
+        const newDay = parseInt(document.getElementById('fixed-dialog-day').value) || dayOfMonth;
+        const category = document.getElementById('fixed-dialog-category').value;
+
+        try {
+            const res = await jsonRequest('/api/pending/convert-fixed', 'POST', {
+                merchant, amount: newAmount, day_of_month: newDay, direction, category,
+            });
+            showAlert(`已添加固定${direction === 'income' ? '收入' : '支出'}「${merchant}」，分类 ${category}，涉及 ${res.classified_count} 条交易`, 'success');
+            document.getElementById('fixed-confirm-dialog').style.display = 'none';
+            pendingFixedDialog = null;
+            // 重新加载
+            aiSuggestions = [];
+            fixedCandidates = [];
+            document.getElementById('fixed-candidates-section').style.display = 'none';
+            document.getElementById('ai-status').style.display = 'none';
+            loadPending();
+        } catch (err) {
+            showAlert('添加失败: ' + err.message, 'error');
+        }
+    });
+
+    /**
+     * 渲染待分类表格
+     */
+    function renderPending(data) {
+        // ★ 在重新渲染前，保存当前所有下拉分类的选中值
+        const savedCategories = {};
+        document.querySelectorAll('.single-cat-select').forEach(sel => {
+            if (sel.value && sel.value !== '__new__') savedCategories[sel.dataset.id] = sel.value;
+        });
+
+        const tbody = document.getElementById('pending-body');
+        const total = data.total || 0;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+        document.getElementById('page-info').textContent = `第 ${currentPage} 页，共 ${totalPages} 页（共 ${total} 条）`;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+        const items = data.items || data.data || [];
+
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无待分类交易</td></tr>';
+            return;
+        }
+
+        const categories = [...(window.categoryOptions || []), '__new__'];
+        const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        const catOptions = categories.map(c => c === '__new__' ? '<option value="__new__">＋新建分类…</option>' : `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+        // 建立 AI 建议的快速查找
+        const suggestMap = {};
+        aiSuggestions.forEach(s => { suggestMap[s.id] = s; });
+
+        // 批量获取当前页交易的标签
+        const txnIds = items.map(t => t.id);
+        let tagMap = {};
+        if (txnIds.length > 0) {
+            // 先从返回数据里找（如果后端返回了 tags）
+            items.forEach(t => { if (t.tags) tagMap[t.id] = t.tags; });
+        }
+
+        tbody.innerHTML = items.map(tx => {
+            const id = tx.id;
+            const time = formatDate(tx.datetime || tx.time || tx.date || tx.transaction_time || tx.created_at);
+            const merchant = tx.merchant || tx.merchant_name || '-';
+            const desc = tx.description || '';
+            const amount = parseFloat(tx.amount) || 0;
+            const direction = tx.direction || 'expense';
+            const source = tx.source || tx.account_name || '-';
+            const tags = tagMap[id] || [];
+
+            const suggestion = suggestMap[id] || {};
+            const suggestedCat = suggestion.suggested_category || '';
+            const reason = suggestion.reason || '';
+            const suggestedTags = suggestion.suggested_tags || [];
+            const isFixed = suggestion.is_fixed_candidate;
+
+            let aiCell = '';
+            if (suggestedCat) {
+                const tagBadges = (suggestedTags || []).map(t =>
+                    `<span style="display:inline-block;background:#e6fffa;color:#234e52;padding:1px 6px;border-radius:3px;font-size:11px;margin:1px;">#${t}</span>`
+                ).join('');
+                aiCell = `<div style="max-width: 200px;">
+                    <span style="background:#bee3f8;color:#2b6cb0;padding:2px 8px;border-radius:4px;font-size:13px;font-weight:500;">
+                        ${suggestedCat}
+                    </span>
+                    <div style="font-size:12px;color:#718096;margin-top:3px;line-height:1.4;">${reason}</div>
+                    ${suggestedTags && suggestedTags.length ? `<div style="margin-top:3px;">${tagBadges}</div>` : ''}
+                    <div style="margin-top:4px;display:flex;gap:4px;flex-wrap:wrap;">
+                        <button class="btn btn-sm btn-success" onclick="acceptSuggestion('${id}', '${suggestedCat}')">接受分类</button>
+                        ${suggestedTags && suggestedTags.length ? `<button class="btn btn-sm" style="background:#e6fffa;color:#234e52;" onclick="acceptTagSuggestion('${id}', ${JSON.stringify(suggestedTags).replace(/"/g, '&quot;')})">应用标签</button>` : ''}
+                    </div>
+                </div>`;
+            } else {
+                aiCell = '<span style="color:#a0aec0;font-size:13px;">待识别</span>';
+            }
+
+            // 现有标签展示
+            const tagHtml = tags.length > 0
+                ? tags.map(t => `<span title="点击移除" onclick="removeTagFromTxn('${id}', ${t.id}, this)" style="display:inline-block;background:${t.color || '#4299e1'};color:white;padding:1px 6px;border-radius:3px;font-size:11px;margin:1px;cursor:pointer;">${t.name} ×</span>`).join(' ')
+                : '<span style="color:#a0aec0;font-size:12px;">无</span>';
+
+            return `<tr data-id="${id}">
+                <td class="checkbox-cell">
+                    <input type="checkbox" class="select-item" value="${id}">
+                </td>
+                <td style="white-space:nowrap;">${time}</td>
+                <td style="max-width:140px;">
+                    <div style="font-weight:500;">${escapeHtml(merchant)}</div>
+                    ${isFixed ? '<span style="background:#feebc8;color:#dd6b20;font-size:11px;padding:1px 6px;border-radius:3px;">固定?</span>' : ''}
+                </td>
+                <td style="max-width:200px;font-size:12px;color:#718096;">
+                    ${escapeHtml(desc) || '<span style="color:#cbd5e0;">-</span>'}
+                </td>
+                <td style="white-space:nowrap;">${formatAmount(Math.abs(amount), direction)}</td>
+                <td style="font-size:12px;color:#718096;">${source}</td>
+                <td>${aiCell}</td>
+                <td style="min-width: 140px;">
+                    <select class="single-cat-select" data-id="${id}" aria-label="选择分类" style="max-width: 140px; font-size: 13px;">
+                        <option value="">请选择</option>
+                        ${catOptions}
+                    </select>
+                </td>
+                <td style="min-width: 140px;">
+                    <div id="tags-${id}" style="margin-bottom:4px;">
+                        ${tagHtml}
+                    </div>
+                    <div style="display:flex;gap:4px;align-items:center;">
+                        <select class="tag-select" data-id="${id}" style="max-width:100px;font-size:12px;" onchange="addTagToTxn('${id}', this)">
+                            <option value="">+加标签</option>
+                        </select>
+                        <button class="btn btn-sm" style="font-size:10px;padding:1px 4px;" title="批量添加/删除标签，多个逗号分隔" onclick="editTags('${id}')">✎编辑</button>
+                    </div>
+                </td>
+                <td>
+                    <div style="display: flex; flex-wrap: wrap; gap: 4px; max-width: 260px;">
+                        <button type="button" class="btn btn-success btn-sm" onclick='confirmSingle(${JSON.stringify(id)})'>确认</button>
+                        <button class="btn btn-sm" style="background:#e6fffa;color:#234e52;flex-shrink:0;" title="把该商户所有交易设为同一分类" onclick='batchClassifyMerchantPending(${JSON.stringify(merchant)}, ${JSON.stringify(id)})'>同商户归类</button>
+                        <button class="btn btn-sm" style="background:#feebc8;color:#dd6b20;flex-shrink:0;" onclick="openFixedDialog(${id},'${escapeHtml(merchant)}',${Math.abs(amount)},${1},'${direction}')">设为固定</button>
+                        <button class="btn btn-sm" style="background:#e9d8fd;color:#553c9a;flex-shrink:0;" title="不设分类，仅打标签后移出待分类" onclick='confirmTagOnly(${JSON.stringify(id)})'>仅标签 ✓</button>
+                        <button class="btn btn-danger btn-sm" onclick='deleteFromPending(${JSON.stringify(id)})'>删除</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+
+        document.querySelectorAll('.single-cat-select').forEach(select => {
+            select.addEventListener('change', () => {
+                if (select.value === '__new__') createCategoryFromSelect(select);
+            });
+        });
+        document.getElementById('batch-category').addEventListener('change', function () {
+            if (this.value === '__new__') createCategoryFromSelect(this);
+        });
+
+        document.getElementById('select-all').addEventListener('change', function () {
+            const checked = this.checked;
+            document.querySelectorAll('.select-item').forEach(cb => cb.checked = checked);
+            updateBatchButton();
+        });
+
+        document.querySelectorAll('.select-item').forEach(cb => {
+            cb.addEventListener('change', updateBatchButton);
+        });
+
+        // 填充标签下拉（排除已添加的标签）
+        document.querySelectorAll('.tag-select').forEach(select => {
+            const txnId = select.dataset.id;
+            const tagDiv = document.getElementById('tags-' + txnId);
+            const existingNames = tagDiv ? Array.from(tagDiv.querySelectorAll('span')).map(s => s.textContent.trim()) : [];
+            select.innerHTML = '<option value="">+加标签</option>' +
+                allTags.filter(t => !existingNames.includes(t.name))
+                    .map(t => `<option value="${t.name}">${t.name}</option>`).join('') +
+                '<option value="__new__">＋新建标签…</option>';
+        });
+
+        // ★ 恢复之前保存的分类选中值
+        document.querySelectorAll('.single-cat-select').forEach(sel => {
+            const saved = savedCategories[sel.dataset.id];
+            if (saved) {
+                const exists = Array.from(sel.options).some(o => o.value === saved);
+                if (exists) sel.value = saved;
+            }
+        });
+    }
+
+    /**
+     * 接受 AI 建议（仅分类）
+     */
+    async function acceptSuggestion(id, category) {
+        try {
+            await jsonRequest(`/api/transactions/${id}/category`, 'PUT', { category: category });
+            showAlert(`已接受建议：${category}`, 'success');
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('操作失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 接受 AI 推荐的标签
+     */
+    async function acceptTagSuggestion(id, tags) {
+        if (!tags || tags.length === 0) return;
+        try {
+            const res = await jsonRequest(`/api/transactions/${id}/tags`, 'GET');
+            const existingTags = (res.tags || []).map(t => t.name);
+            const allTags = [...new Set([...existingTags, ...tags])];
+            await jsonRequest(`/api/transactions/${id}/tags`, 'PUT', { tags: allTags });
+            showAlert(`已添加 ${tags.length} 个标签`, 'success');
+            loadPending();
+        } catch (err) {
+            showAlert('应用标签失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 移除交易的某个标签
+     */
+    async function removeTagFromTxn(txnId, tagId, el) {
+        if (!await showConfirmModal('移除标签', '确定移除这个标签吗？')) return;
+        try {
+            await jsonRequest(`/api/transactions/${txnId}/tags/${tagId}`, 'DELETE');
+            showAlert('标签已移除', 'success');
+            loadPending();
+        } catch (err) {
+            showAlert('移除失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 编辑交易标签（弹窗）
+     */
+    async function editTags(transactionId) {
+        // 先获取当前标签
+        let currentTags = [];
+        try {
+            const res = await jsonRequest(`/api/transactions/${transactionId}/tags`, 'GET');
+            currentTags = (res.tags || []).map(t => t.name);
+        } catch (e) {}
+
+        const input = await showPromptModal(
+            '编辑标签（逗号分隔多个标签）',
+            '如：工作餐,报销,网购',
+            currentTags.join(',')
+        );
+        if (input === null) return;
+
+        const tagNames = input.split(',').map(s => s.trim()).filter(s => s);
+        try {
+            await jsonRequest(`/api/transactions/${transactionId}/tags`, 'PUT', { tags: tagNames });
+            showAlert(`已更新 ${tagNames.length} 个标签`, 'success');
+            loadPending();
+        } catch (err) {
+            showAlert('更新标签失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 更新批量确认按钮状态
+     */
+    function updateBatchButton() {
+        const checked = document.querySelectorAll('.select-item:checked').length;
+        document.getElementById('btn-batch-confirm').disabled = checked === 0;
+    }
+
+    /**
+     * 单条确认分类
+     */
+    async function confirmSingle(id) {
+        const select = document.querySelector(`.single-cat-select[data-id="${id}"]`);
+        if (!select) return;
+        if (select.value === '__new__') {
+            await createCategoryFromSelect(select);
+            return;
+        }
+        const category = select.value;
+        if (!category) {
+            showAlert('请选择一个分类', 'error');
+            return;
+        }
+        try {
+            await jsonRequest(`/api/transactions/${id}/category`, 'PUT', { category: category });
+            showAlert('分类确认成功', 'success');
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('分类确认失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 仅标签确认 — 不设分类，只保留标签后移出待分类
+     */
+    async function confirmTagOnly(id) {
+        // 检查是否有标签
+        const tagDiv = document.getElementById('tags-' + id);
+        const hasTags = tagDiv && tagDiv.querySelectorAll('span[title]').length > 0;
+        let confirmed = false;
+        if (!hasTags) {
+            confirmed = await showConfirmModal('仅标签完成', '这笔交易还没有添加任何标签，确定仅标记完成（分类将设为"其他"）吗？');
+        } else {
+            confirmed = await showConfirmModal('仅标签完成', '确定不设分类，仅保留现有标签，移出待分类吗？（分类将设为"其他"）');
+        }
+        if (!confirmed) return;
+        try {
+            await jsonRequest(`/api/transactions/${id}/category`, 'PUT', { category: '其他' });
+            showAlert('已标记完成（分类: 其他）', 'success');
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('操作失败: ' + err.message, 'error');
+        }
+    }
+
+    // 按商户批量归类（待分类页面）
+    async function batchClassifyMerchantPending(merchantName, txnId) {
+        if (!merchantName || merchantName === '-') {
+            showAlert('该交易没有商户信息', 'error');
+            return;
+        }
+
+        // 获取当前行的下拉分类选择值
+        const select = document.querySelector(`.single-cat-select[data-id="${txnId}"]`);
+        const selectedCategory = select ? select.value : '';
+
+        // 获取当前行的已有标签
+        const tagDiv = document.getElementById('tags-' + txnId);
+        const currentTags = tagDiv ? Array.from(tagDiv.querySelectorAll('span[title]')).map(s => s.textContent.replace(' ×','').trim()) : [];
+
+        // 先查该商户有多少笔交易
+        let count = 0;
+        try {
+            const res = await fetch(`/api/transactions?merchant=${encodeURIComponent(merchantName)}&per_page=1&exact_merchant=true`);
+            const data = await res.json();
+            count = data.total || 0;
+        } catch (e) {}
+
+        // 确定分类：如果下拉已选则直接用，否则弹窗输入
+        let category = selectedCategory && selectedCategory !== '__new__' ? selectedCategory : '';
+        if (!category) {
+            const input = await showPromptModal(
+                `商户「${merchantName}」共 ${count} 笔交易`,
+                '输入分类名称，如：餐饮 或 餐饮/咖啡',
+                ''
+            );
+            if (input === null) return;
+            category = input.trim();
+            if (!category) { showAlert('请输入分类名称', 'error'); return; }
+        }
+
+        // 构建确认消息
+        let msg = `将「${merchantName}」的全部 ${count} 笔交易分类为「${category}」`;
+        if (currentTags.length > 0) msg += `\n并添加标签: ${currentTags.join(', ')}`;
+        msg += `\n\n同时会添加分类规则，以后该商户的新交易会自动归类。`;
+        if (!await showConfirmModal('批量归类', msg)) return;
+
+        try {
+            // 1. 批量设分类
+            const res = await jsonRequest('/api/merchants/batch-classify', 'POST', {
+                merchant: merchantName,
+                category: category,
+            });
+
+            // 2. 如果有标签，也批量添加
+            let tagCount = 0;
+            if (currentTags.length > 0) {
+                const tagRes = await fetch(`/api/transactions?merchant=${encodeURIComponent(merchantName)}&per_page=99999&exact_merchant=true`);
+                const tagData = await tagRes.json();
+                const merchantItems = tagData.items || [];
+                for (const item of merchantItems) {
+                    try {
+                        await jsonRequest(`/api/transactions/${item.id}/tags`, 'PUT', { tags: currentTags });
+                        tagCount++;
+                    } catch (e) {}
+                }
+            }
+
+            const tagText = tagCount > 0 ? `，同时添加了 ${currentTags.join(',')} 标签` : '';
+            showAlert(`已将商户「${merchantName}」的 ${res.count || 0} 笔交易分类为「${category}」${tagText}`, 'success');
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('操作失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 从待分类页面删除交易
+     */
+    async function deleteFromPending(id) {
+        if (!await showConfirmModal('删除交易', '确定删除这笔交易吗？（删除后移至回收站，可在交易管理中恢复）')) return;
+        try {
+            await jsonRequest(`/api/transactions/${encodeURIComponent(id)}`, 'DELETE');
+            showAlert('已删除', 'success');
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 批量确认选中的交易
+     */
+    async function batchConfirm() {
+        const checkedItems = document.querySelectorAll('.select-item:checked');
+        if (checkedItems.length === 0) {
+            showAlert('请先选择待分类交易', 'error');
+            return;
+        }
+        const categorySelect = document.getElementById('batch-category');
+        if (categorySelect.value === '__new__') {
+            await createCategoryFromSelect(categorySelect);
+            return;
+        }
+        const category = categorySelect.value;
+        if (!category) {
+            showAlert('请先选择分类', 'error');
+            return;
+        }
+        const ids = Array.from(checkedItems).map(cb => parseInt(cb.value));
+        try {
+            await jsonRequest('/api/pending/batch', 'POST', {
+                ids: ids,
+                category: category
+            });
+            showAlert(`成功确认 ${ids.length} 条交易`, 'success');
+            // 清除 AI 状态
+            aiSuggestions = [];
+            fixedCandidates = [];
+            document.getElementById('fixed-candidates-section').style.display = 'none';
+            document.getElementById('ai-status').style.display = 'none';
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('批量确认失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 全部设置为指定分类
+     */
+    async function allSetCategory() {
+        const categorySelect = document.getElementById('batch-category');
+        if (categorySelect.value === '__new__') {
+            await createCategoryFromSelect(categorySelect);
+            return;
+        }
+        const category = categorySelect.value;
+        if (!category) {
+            showAlert('请先选择分类', 'error');
+            return;
+        }
+        try {
+            await jsonRequest('/api/pending/batch', 'POST', {
+                all: true,
+                category: category
+            });
+            showAlert('全部设置完成', 'success');
+            aiSuggestions = [];
+            fixedCandidates = [];
+            document.getElementById('fixed-candidates-section').style.display = 'none';
+            document.getElementById('ai-status').style.display = 'none';
+            loadPending();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('全部设置失败: ' + err.message, 'error');
+        }
+    }
+
+    // 页面初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        const batchSelect = document.getElementById('batch-category');
+        if (batchSelect && window.categoryOptions) {
+            const customOptions = window.categoryOptions.filter(c => !Array.from(batchSelect.options).some(o => o.value === c));
+            customOptions.forEach(c => batchSelect.add(new Option(c, c, false, false)));
+        }
+        loadAllTags();
+        syncPendingRange();  // 首次同步账期并加载
+        loadPendingSuggestCache();  // 尝试加载缓存 AI 建议
+
+        document.getElementById('btn-batch-confirm').addEventListener('click', batchConfirm);
+        document.getElementById('btn-all-set').addEventListener('click', allSetCategory);
+
+        document.getElementById('btn-prev').addEventListener('click', function () {
+            if (currentPage > 1) {
+                currentPage--;
+                loadPending();
+            }
+        });
+
+        document.getElementById('btn-next').addEventListener('click', function () {
+            currentPage++;
+            loadPending();
+        });
+
+        // 全局账期变化时刷新
+        window.addEventListener('global-range-changed', syncPendingRange);
+    });
+</script>
+{% endblock %}

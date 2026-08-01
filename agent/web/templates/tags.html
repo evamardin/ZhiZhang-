@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}标签统计 - 财务助手{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <h2>标签统计</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 16px;">
+            按标签维度查看收支汇总。点击任一标签可查看该标签下的所有交易明细。
+        </p>
+
+        <!-- 概览卡片 -->
+        <div class="summary-stats" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 20px;">
+            <div class="stat-card" style="background: #f7fafc; padding: 16px; border-radius: 8px;">
+                <div class="stat-label" style="color: #718096; font-size: 13px;">标签总数</div>
+                <div class="stat-value" id="total-tags" style="font-size: 24px; font-weight: 600; margin-top: 4px;">0</div>
+            </div>
+            <div class="stat-card" style="background: #fff5f5; padding: 16px; border-radius: 8px;">
+                <div class="stat-label" style="color: #c53030; font-size: 13px;">已打标签交易</div>
+                <div class="stat-value" id="total-tagged" style="font-size: 24px; font-weight: 600; margin-top: 4px; color: #c53030;">0 笔</div>
+            </div>
+        </div>
+
+        <!-- 标签表格 -->
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>标签</th>
+                        <th>交易笔数</th>
+                        <th>总支出</th>
+                        <th>总收入</th>
+                        <th>净额</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tags-summary-body">
+                    <tr><td colspan="6" class="empty-state">暂无标签数据，去给交易打几个标签试试吧～</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 标签明细弹窗 -->
+    <div id="tag-detail-dialog" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.4); z-index: 2000; align-items: flex-start; justify-content: center; overflow-y: auto; padding: 40px 20px;">
+        <div class="card" style="max-width: 900px; width: 100%;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 id="tag-detail-title">标签明细</h3>
+                <button class="btn btn-sm" onclick="closeTagDetail()">关闭</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>商户</th>
+                            <th>描述</th>
+                            <th>金额</th>
+                            <th>分类</th>
+                            <th>来源</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tag-detail-body">
+                        <tr><td colspan="6" class="empty-state">加载中...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentTagId = null;
+
+    async function loadTagSummary() {
+        try {
+            const res = await fetch(withGlobalRange('/api/tags/summary'));
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+
+            // 更新概览
+            document.getElementById('total-tags').textContent = items.filter(i => i.count > 0).length + ' / ' + items.length;
+            const totalTagged = items.reduce((sum, i) => sum + (i.count || 0), 0);
+            document.getElementById('total-tagged').textContent = totalTagged + ' 笔';
+
+            const tbody = document.getElementById('tags-summary-body');
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无标签数据，去给交易打几个标签试试吧～</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = items.map(t => {
+                const expense = parseFloat(t.total_expense) || 0;
+                const income = parseFloat(t.total_income) || 0;
+                const net = income - expense;
+                const count = t.count || 0;
+                return `<tr>
+                    <td>
+                        <span style="display:inline-block;background:${t.color || '#4299e1'};color:white;padding:3px 10px;border-radius:4px;font-size:13px;cursor:pointer;" onclick="openTagDetail(${t.id}, '${t.name}')">
+                            ${t.name}
+                        </span>
+                    </td>
+                    <td>${count} 笔</td>
+                    <td style="color: #e53e3e;">¥${expense.toFixed(2)}</td>
+                    <td style="color: #38a169;">¥${income.toFixed(2)}</td>
+                    <td style="font-weight: 500; color: ${net >= 0 ? '#38a169' : '#e53e3e'};">¥${net.toFixed(2)}</td>
+                    <td><button class="btn btn-sm" onclick="openTagDetail(${t.id}, '${t.name}')">查看明细</button></td>
+                </tr>`;
+            }).join('');
+        } catch (err) {
+            console.error('加载标签统计失败:', err);
+        }
+    }
+
+    async function openTagDetail(tagId, tagName) {
+        currentTagId = tagId;
+        document.getElementById('tag-detail-title').textContent = `标签：${tagName} — 交易明细`;
+        document.getElementById('tag-detail-dialog').style.display = 'flex';
+        document.getElementById('tag-detail-body').innerHTML = '<tr><td colspan="6" class="empty-state">加载中...</td></tr>';
+
+        try {
+            const res = await fetch(`/api/tags/${tagId}/transactions?per_page=200`);
+            const data = await res.json();
+            const items = data.items || [];
+            const tbody = document.getElementById('tag-detail-body');
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">该标签下暂无交易</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(t => `
+                <tr>
+                    <td>${formatDate(t.datetime)}</td>
+                    <td>${t.merchant || '-'}</td>
+                    <td style="color:#718096;font-size:13px;">${t.description || '-'}</td>
+                    <td style="color: ${t.direction === '收入' ? '#38a169' : '#e53e3e'};">
+                        ${t.direction === '收入' ? '+' : '-'}¥${parseFloat(t.amount).toFixed(2)}
+                    </td>
+                    <td>${t.category || '-'}</td>
+                    <td>${t.source || '-'}</td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            document.getElementById('tag-detail-body').innerHTML = '<tr><td colspan="6" class="empty-state">加载失败: ' + err.message + '</td></tr>';
+        }
+    }
+
+    function closeTagDetail() {
+        document.getElementById('tag-detail-dialog').style.display = 'none';
+        currentTagId = null;
+    }
+
+    // 点击遮罩关闭
+    document.getElementById('tag-detail-dialog').addEventListener('click', function (e) {
+        if (e.target === this) closeTagDetail();
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadTagSummary();
+        window.addEventListener('global-range-changed', loadTagSummary);
+    });
+</script>
+{% endblock %}

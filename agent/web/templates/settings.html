@@ -1,0 +1,1419 @@
+{% extends "base.html" %}
+
+{% block title %}设置 - 财务助手{% endblock %}
+
+{% block content %}
+<div style="display: flex; gap: 20px; align-items: flex-start;">
+    <!-- 左侧导航 -->
+    <div style="width: 200px; flex-shrink: 0; position: sticky; top: 76px;">
+        <div class="card" style="padding: 12px;">
+            <nav style="display: flex; flex-direction: column; gap: 4px;">
+                <a href="#section-basic" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">📋 基本设置</a>
+                <a href="#section-api" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🔑 API 配置</a>
+                <a href="#section-reset" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🔄 重置分类</a>
+                <a href="#section-accounts" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🏦 账户管理</a>
+                <a href="#section-dedup" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🔍 去重检测</a>
+                <a href="#section-debts" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">💳 债务管理</a>
+                <a href="#section-fixed" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">📅 固定收支</a>
+                <a href="#section-income" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">✅ 到账确认</a>
+                <a href="#section-savings" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🎯 储蓄目标</a>
+                <a href="#section-invest" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">📈 理财账户</a>
+                <a href="#section-rules" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">📏 分类规则</a>
+                <a href="#section-categories" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🏷️ 分类管理</a>
+                <a href="#section-tags" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">🏷️ 标签管理</a>
+                <a href="#section-backup" class="nav-link" style="padding: 8px 12px; border-radius: 6px; text-decoration: none; color: #2d3748; font-size: 14px; transition: background 0.2s;">💾 数据备份</a>
+            </nav>
+        </div>
+    </div>
+
+    <!-- 右侧主内容 -->
+    <div style="flex: 1; min-width: 0;">
+
+    <!-- ===== 基本设置 ===== -->
+    <div id="section-basic" class="card">
+        <h2>基本设置</h2>
+        <div class="form-row" style="flex-wrap: wrap;">
+            <div class="form-group">
+                <label for="setting-balance">当前余额</label>
+                <input type="number" id="setting-balance" step="0.01" placeholder="0.00">
+            </div>
+            <div class="form-group">
+                <label for="setting-name">姓名</label>
+                <input type="text" id="setting-name" placeholder="请输入姓名">
+            </div>
+            <div class="form-group">
+                <label for="setting-safety">安全余额</label>
+                <input type="number" id="setting-safety" step="0.01" placeholder="低于此值预警">
+            </div>
+            <button class="btn" id="btn-save-settings">保存</button>
+        </div>
+    </div>
+
+    <!-- ===== API 配置 ===== -->
+    <div id="section-api" class="card">
+        <h2>API 配置</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            配置 DeepSeek API Key 以启用 AI 智能分类和建议功能。API Key 仅存储在本地，不会上传。
+        </p>
+        <div class="form-row" style="flex-wrap: wrap;">
+            <div class="form-group" style="flex: 2; min-width: 250px;">
+                <label for="setting-api-key">DeepSeek API Key</label>
+                <input type="password" id="setting-api-key" placeholder="sk-..." style="width: 100%;">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 150px;">
+                <label for="setting-api-url">API 地址</label>
+                <input type="text" id="setting-api-url" value="https://api.deepseek.com/v1" style="width: 100%;">
+            </div>
+            <div class="form-group" style="flex: 1; min-width: 120px;">
+                <label for="setting-api-model">模型</label>
+                <input type="text" id="setting-api-model" value="deepseek-chat" style="width: 100%;">
+            </div>
+            <button class="btn btn-success" id="btn-save-api" style="margin-top: 22px;">保存 API</button>
+        </div>
+        <div id="api-status" style="display: none; margin-top: 8px; font-size: 14px;"></div>
+    </div>
+
+    <!-- ===== 重置分类 ===== -->
+    <div id="section-reset" class="card" style="border-left: 4px solid #e53e3e;">
+        <h2>重置分类</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            删除所有交易分类记录，恢复到初始未分类状态。<strong style="color: #e53e3e;">此操作不可撤销！</strong>
+        </p>
+        <div class="form-row">
+            <button class="btn btn-danger" id="btn-reset-classifications">删除所有分类</button>
+        </div>
+    </div>
+
+    <!-- ===== 账户管理 ===== -->
+    <div id="section-accounts" class="card">
+        <h2>账户管理</h2>
+        <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+            <button class="btn" id="btn-recalc-accounts" style="background:#2b6cb0;color:#fff;">
+                📊 一键从交易统计余额
+            </button>
+            <span id="recalc-status" style="font-size: 13px; color: #718096;"></span>
+        </div>
+        <div class="table-wrapper">
+            <table class="table" id="account-table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>余额</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="account-body">
+                    <tr><td colspan="5" class="empty-state">暂无账户</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加账户</h3>
+        <div class="form-row" style="flex-wrap: wrap;">
+            <div class="form-group">
+                <label for="acct-name">名称</label>
+                <input type="text" id="acct-name" placeholder="如：工资卡">
+            </div>
+            <div class="form-group">
+                <label for="acct-type">类型</label>
+                <select id="acct-type">
+                    <option value="微信钱包">微信钱包</option>
+                    <option value="支付宝">支付宝</option>
+                    <option value="银行卡">银行卡</option>
+                    <option value="现金">现金</option>
+                    <option value="理财">理财</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="acct-balance">余额</label>
+                <input type="number" id="acct-balance" step="0.01" placeholder="0.00">
+            </div>
+            <button class="btn btn-success" id="btn-add-account">添加</button>
+        </div>
+    </div>
+
+    <!-- ===== 去重检测 ===== -->
+    <div id="section-dedup" class="card">
+        <h2>🔍 去重检测</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            检测相同金额、相近时间、相似商户的重复交易（如微信支付和银行卡同时记录同一笔消费）。
+        </p>
+        <div style="margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+            <label style="font-size: 13px; color: #4a5568;">时间窗口：</label>
+            <select id="dedup-time-window" style="padding: 4px 8px; border: 1px solid #cbd5e0; border-radius: 4px;">
+                <option value="1">1 分钟内</option>
+                <option value="3">3 分钟内</option>
+                <option value="5">5 分钟内</option>
+                <option value="10">10 分钟内</option>
+            </select>
+            <button class="btn" id="btn-find-duplicates" style="background:#2b6cb0;color:#fff;">🔍 扫描重复</button>
+            <span id="dedup-status" style="font-size: 13px; color: #718096;"></span>
+        </div>
+        <div id="dedup-results" style="display: none;">
+            <div style="margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                <span id="dedup-count" style="font-size: 14px; font-weight: 600; color: #2d3748;"></span>
+                <button class="btn btn-danger btn-sm" id="btn-delete-all-duplicates" style="display: none;">🗑️ 删除全部重复项</button>
+            </div>
+            <div class="table-wrapper">
+                <table class="table" id="dedup-table" style="font-size: 13px;">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;"><input type="checkbox" id="dedup-select-all" checked></th>
+                            <th>时间</th>
+                            <th>商户</th>
+                            <th>金额</th>
+                            <th>渠道1</th>
+                            <th>时间</th>
+                            <th>商户</th>
+                            <th>渠道2</th>
+                            <th>时间差</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dedup-body">
+                        <tr><td colspan="10" class="empty-state">点击"扫描重复"开始检测</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn btn-danger" id="btn-delete-selected">🗑️ 删除选中</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 债务管理 ===== -->
+    <div id="section-debts" class="card">
+        <h2>债务管理</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            记录负债信息，支持债务原因、还款计划、计息跟踪。
+        </p>
+        <div class="table-wrapper">
+            <table class="table" id="debt-table">
+                <thead>
+                    <tr>
+                        <th>负债原因</th>
+                        <th>债权人</th>
+                        <th>总金额</th>
+                        <th>剩余金额</th>
+                        <th>利率</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="debt-body">
+                    <tr><td colspan="7" class="empty-state">暂无债务</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加负债</h3>
+        <div class="form-row" style="flex-wrap: wrap;">
+            <div class="form-group">
+                <input type="text" id="debt-reason" placeholder="负债原因（如：助学贷款）">
+            </div>
+            <div class="form-group">
+                <input type="number" id="debt-total" step="0.01" placeholder="总金额">
+            </div>
+            <div class="form-group">
+                <input type="number" id="debt-remaining" step="0.01" placeholder="剩余金额（可选）">
+            </div>
+            <div class="form-group">
+                <input type="number" id="debt-rate" step="0.01" placeholder="年利率(%)">
+            </div>
+            <div class="form-group">
+                <input type="text" id="debt-creditor" placeholder="债权人">
+            </div>
+            <div class="form-group">
+                <input type="date" id="debt-due" placeholder="到期日">
+            </div>
+            <div class="form-group" style="flex:1;min-width:200px;">
+                <input type="text" id="debt-plan" placeholder="还款计划（如：每月还2000）">
+            </div>
+            <button class="btn btn-success" id="btn-add-debt">添加负债</button>
+        </div>
+    </div>
+
+    <!-- ===== 固定收支 ===== -->
+    <div id="section-fixed" class="card">
+        <h2>固定收支</h2>
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="fixed-income">收入</button>
+            <button class="tab-btn" data-tab="fixed-expense">支出</button>
+        </div>
+        <div class="tab-content active" id="fixed-income">
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>金额</th>
+                            <th>每月几号</th>
+                            <th>分类</th>
+                            <th>期限</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fixed-income-body">
+                        <tr><td colspan="7" class="empty-state">暂无固定收入</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <h3 style="margin-top: 16px;">添加固定收入</h3>
+            <div class="form-row" style="flex-wrap: wrap;">
+                <div class="form-group">
+                    <input type="text" class="fixed-name" placeholder="名称" data-type="income">
+                </div>
+                <div class="form-group">
+                    <input type="number" class="fixed-amount" step="0.01" placeholder="金额" data-type="income">
+                </div>
+                <div class="form-group">
+                    <input type="number" class="fixed-day" min="1" max="31" placeholder="几号" data-type="income">
+                </div>
+                <div class="form-group">
+                    <select class="fixed-category" data-type="income">
+                        <option value="其他">其他</option>
+                        <option value="工资">工资</option>
+                        <option value="兼职">兼职</option>
+                        <option value="理财收入">理财收入</option>
+                        <option value="转账">转账</option>
+                        <option value="退款">退款</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="month" class="fixed-start" data-type="income" placeholder="开始月份" title="开始月份（可选）">
+                </div>
+                <div class="form-group">
+                    <input type="month" class="fixed-end" data-type="income" placeholder="结束月份" title="结束月份（可选）">
+                </div>
+                <button class="btn btn-success btn-add-fixed" data-type="income">添加</button>
+            </div>
+        </div>
+        <div class="tab-content" id="fixed-expense">
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>名称</th>
+                            <th>金额</th>
+                            <th>每月几号</th>
+                            <th>分类</th>
+                            <th>期限</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fixed-expense-body">
+                        <tr><td colspan="6" class="empty-state">暂无固定支出</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <h3 style="margin-top: 16px;">添加固定支出</h3>
+            <div class="form-row" style="flex-wrap: wrap;">
+                <div class="form-group">
+                    <input type="text" class="fixed-name" placeholder="名称" data-type="expense">
+                </div>
+                <div class="form-group">
+                    <input type="number" class="fixed-amount" step="0.01" placeholder="金额" data-type="expense">
+                </div>
+                <div class="form-group">
+                    <input type="number" class="fixed-day" min="1" max="31" placeholder="几号" data-type="expense">
+                </div>
+                <div class="form-group">
+                    <select class="fixed-category" data-type="expense">
+                        <option value="餐饮">餐饮</option>
+                        <option value="交通">交通</option>
+                        <option value="日用百货">日用百货</option>
+                        <option value="购物">购物</option>
+                        <option value="娱乐">娱乐</option>
+                        <option value="学习">学习</option>
+                        <option value="住房">住房</option>
+                        <option value="医疗健康">医疗健康</option>
+                        <option value="旅行">旅行</option>
+                        <option value="通讯">通讯</option>
+                        <option value="投资">投资</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="month" class="fixed-start" data-type="expense" placeholder="开始月份" title="开始月份（可选）">
+                </div>
+                <div class="form-group">
+                    <input type="month" class="fixed-end" data-type="expense" placeholder="结束月份" title="结束月份（可选）">
+                </div>
+                <button class="btn btn-success btn-add-fixed" data-type="expense">添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 收入到账确认 ===== -->
+    <div id="section-income" class="card">
+        <h2>收入到账确认</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">待确认到账的收入计划，确认后会计入现金流预测。</p>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>预计金额</th>
+                        <th>预计到账日</th>
+                        <th>分类</th>
+                        <th>实际金额</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="pending-income-body">
+                    <tr><td colspan="6" class="empty-state">暂无待确认收入</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===== 储蓄目标 ===== -->
+    <div id="section-savings" class="card">
+        <h2>储蓄目标</h2>
+        <div class="table-wrapper">
+            <table class="table" id="savings-table">
+                <thead>
+                    <tr>
+                        <th>目标名称</th>
+                        <th>目标金额</th>
+                        <th>已储蓄</th>
+                        <th>进度</th>
+                        <th>目标日期</th>
+                        <th>每月存入</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="savings-body">
+                    <tr><td colspan="7" class="empty-state">暂无储蓄目标</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加储蓄目标</h3>
+        <div class="form-row" style="flex-wrap: wrap;">
+            <div class="form-group">
+                <input type="text" id="sg-name" placeholder="目标名称（如：应急金）">
+            </div>
+            <div class="form-group">
+                <input type="number" id="sg-target" step="0.01" placeholder="目标金额">
+            </div>
+            <div class="form-group">
+                <input type="number" id="sg-current" step="0.01" placeholder="已储蓄金额">
+            </div>
+            <div class="form-group">
+                <input type="date" id="sg-date" placeholder="目标日期">
+            </div>
+            <div class="form-group">
+                <input type="number" id="sg-monthly" step="0.01" placeholder="每月存入">
+            </div>
+            <button class="btn btn-success" id="btn-add-savings">添加</button>
+        </div>
+    </div>
+
+    <!-- ===== 理财账户 ===== -->
+    <div id="section-invest" class="card">
+        <h2>理财账户</h2>
+        <div class="table-wrapper">
+            <table class="table" id="invest-table">
+                <thead>
+                    <tr>
+                        <th>名称</th>
+                        <th>类型</th>
+                        <th>机构</th>
+                        <th>本金</th>
+                        <th>市值</th>
+                        <th>收益率</th>
+                        <th>估值日期</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="invest-body">
+                    <tr><td colspan="8" class="empty-state">暂无理财账户</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加理财账户</h3>
+        <div class="form-row" style="flex-wrap: wrap;">
+            <div class="form-group">
+                <input type="text" id="inv-name" placeholder="账户名称">
+            </div>
+            <div class="form-group">
+                <select id="inv-type">
+                    <option value="证券账户">证券账户</option>
+                    <option value="基金账户">基金账户</option>
+                    <option value="理财账户">理财账户</option>
+                    <option value="私募产品">私募产品</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <input type="text" id="inv-inst" placeholder="机构名称（如：华泰证券）">
+            </div>
+            <div class="form-group">
+                <input type="number" id="inv-principal" step="0.01" placeholder="投入本金">
+            </div>
+            <div class="form-group">
+                <input type="number" id="inv-value" step="0.01" placeholder="当前市值">
+            </div>
+            <div class="form-group">
+                <input type="date" id="inv-date" placeholder="估值日期">
+            </div>
+            <button class="btn btn-success" id="btn-add-invest">添加</button>
+        </div>
+    </div>
+
+    <!-- ===== 分类规则 ===== -->
+    <div id="section-rules" class="card">
+        <h2>分类规则</h2>
+        <div class="table-wrapper">
+            <table class="table" id="rule-table">
+                <thead>
+                    <tr>
+                        <th>关键词</th>
+                        <th>分类</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="rule-body">
+                    <tr><td colspan="4" class="empty-state">暂无规则</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加规则</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="rule-keyword">关键词</label>
+                <input type="text" id="rule-keyword" placeholder="如：美团">
+            </div>
+            <div class="form-group">
+                <label for="rule-category">分类</label>
+                <select id="rule-category">
+                    <option value="餐饮">餐饮</option>
+                    <option value="交通">交通</option>
+                    <option value="日用百货">日用百货</option>
+                    <option value="购物">购物</option>
+                    <option value="娱乐">娱乐</option>
+                    <option value="学习">学习</option>
+                    <option value="住房">住房</option>
+                    <option value="医疗健康">医疗健康</option>
+                    <option value="旅行">旅行</option>
+                    <option value="通讯">通讯</option>
+                    <option value="转账">转账</option>
+                    <option value="退款">退款</option>
+                    <option value="投资">投资</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <button class="btn btn-success" id="btn-add-rule">添加</button>
+        </div>
+    </div>
+
+    <!-- ===== 分类管理 ===== -->
+    <div id="section-categories" class="card">
+        <h2>分类管理</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            先创建一级分类，再从一级分类中选择并添加二级分类。
+        </p>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>分类名称</th>
+                        <th>类型</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="category-mgmt-body">
+                    <tr><td colspan="3" class="empty-state">暂无自定义分类</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加分类</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="new-parent-cat">一级分类</label>
+                <select id="new-parent-cat">
+                    <option value="">新增一级分类</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="new-cat-name">分类名称</label>
+                <input type="text" id="new-cat-name" placeholder="输入分类名称">
+            </div>
+            <button class="btn btn-success" id="btn-add-category">添加</button>
+        </div>
+    </div>
+
+    <!-- ===== 标签管理 ===== -->
+    <div id="section-tags" class="card">
+        <h2>标签管理</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            标签可以自由打多个，用于按项目、场景、归属等维度筛选和统计交易（如：报销、工作餐、项目A、家庭开支）。
+        </p>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>标签名</th>
+                        <th>颜色</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="tags-body">
+                    <tr><td colspan="4" class="empty-state">暂无标签</td></tr>
+                </tbody>
+            </table>
+        </div>
+        <h3 style="margin-top: 16px;">添加标签</h3>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="new-tag-name">标签名称</label>
+                <input type="text" id="new-tag-name" placeholder="如：报销、工作餐、项目A">
+            </div>
+            <div class="form-group">
+                <label for="new-tag-color">颜色</label>
+                <input type="color" id="new-tag-color" value="#4299e1" style="height:36px;width:60px;padding:2px;">
+            </div>
+            <button class="btn btn-success" id="btn-add-tag">添加标签</button>
+        </div>
+    </div>
+
+    <!-- ===== 数据导出与备份 ===== -->
+    <div id="section-backup" class="card">
+        <h2>数据导出与备份</h2>
+        <div class="form-row">
+            <a href="/api/export" class="btn" target="_blank" style="text-decoration: none;">导出 JSON</a>
+            <a href="/api/export/csv" class="btn" target="_blank" style="text-decoration: none;">导出 CSV</a>
+            <button class="btn btn-success" id="btn-create-backup">创建备份</button>
+        </div>
+        <h3 style="margin-top: 16px;">备份列表</h3>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>文件名</th>
+                        <th>大小</th>
+                        <th>创建时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="backup-body">
+                    <tr><td colspan="4" class="empty-state">暂无备份</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .nav-link:hover { background: #ebf8ff; color: #2b6cb0; }
+    .nav-link.active { background: #bee3f8; color: #2b6cb0; font-weight: 600; }
+    html { scroll-behavior: smooth; }
+</style>
+<script>
+    let parentCategoryMap = {};
+
+    // 高亮当前可见的导航项
+    function updateActiveNav() {
+        const sections = document.querySelectorAll('[id^="section-"]');
+        const links = document.querySelectorAll('.nav-link');
+        let currentId = '';
+        sections.forEach(s => {
+            const rect = s.getBoundingClientRect();
+            if (rect.top <= 120) currentId = '#' + s.id;
+        });
+        links.forEach(l => {
+            l.classList.toggle('active', l.getAttribute('href') === currentId);
+        });
+    }
+    window.addEventListener('scroll', updateActiveNav);
+    window.addEventListener('load', updateActiveNav);
+
+    // ===== 基本设置 =====
+    async function loadSettings() {
+        try {
+            const res = await fetch('/api/settings');
+            const data = await res.json();
+            document.getElementById('setting-balance').value = data.current_balance || '';
+            document.getElementById('setting-name').value = data.name || '';
+            document.getElementById('setting-safety').value = data.safety_balance || '';
+            document.getElementById('setting-api-key').value = data.api_key || '';
+            document.getElementById('setting-api-url').value = data.api_base_url || 'https://api.deepseek.com/v1';
+            document.getElementById('setting-api-model').value = data.api_model || 'deepseek-chat';
+        } catch (err) {
+            console.error('加载设置失败:', err);
+        }
+    }
+
+    document.getElementById('btn-save-settings').addEventListener('click', async function () {
+        const balance = parseFloat(document.getElementById('setting-balance').value) || 0;
+        const name = document.getElementById('setting-name').value;
+        const safety = parseFloat(document.getElementById('setting-safety').value) || 0;
+        try {
+            await jsonRequest('/api/settings', 'PUT', { current_balance: balance, name: name, safety_balance: safety });
+            showAlert('保存成功', 'success');
+        } catch (err) {
+            showAlert('保存失败: ' + err.message, 'error');
+        }
+    });
+
+    // ===== API 配置 =====
+    document.getElementById('btn-save-api').addEventListener('click', async function () {
+        const apiKey = document.getElementById('setting-api-key').value;
+        const apiUrl = document.getElementById('setting-api-url').value;
+        const apiModel = document.getElementById('setting-api-model').value;
+        const statusEl = document.getElementById('api-status');
+        try {
+            await jsonRequest('/api/settings', 'PUT', { api_key: apiKey, api_base_url: apiUrl, api_model: apiModel });
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#38a169';
+            statusEl.textContent = '✅ API 配置已保存' + (apiKey ? '，可以使用 AI 功能了。' : '，但 API Key 为空。');
+            showAlert('API 配置保存成功', 'success');
+        } catch (err) {
+            statusEl.style.display = 'block';
+            statusEl.style.color = '#e53e3e';
+            statusEl.textContent = '❌ 保存失败: ' + err.message;
+        }
+    });
+
+    // ===== 重置分类 =====
+    document.getElementById('btn-reset-classifications').addEventListener('click', async function () {
+        if (!confirm('⚠️ 确定要删除所有交易分类记录吗？\n\n此操作不可撤销！所有交易将回到"待分类"状态。')) return;
+        if (!confirm('再次确认：删除所有交易分类记录？')) return;
+        const btn = this;
+        btn.disabled = true;
+        btn.textContent = '正在重置...';
+        try {
+            await jsonRequest('/api/classifications/reset', 'POST');
+            showAlert('所有分类已删除，交易已恢复到未分类状态', 'success');
+        } catch (err) {
+            showAlert('重置失败: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '删除所有分类';
+        }
+    });
+
+    // ===== 账户管理 =====
+    async function loadAccounts() {
+        try {
+            const res = await fetch('/api/accounts');
+            const data = await res.json();
+            const tbody = document.getElementById('account-body');
+            const items = data.accounts || data.items || data.data || Array.isArray(data) ? data : [];
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state">暂无账户</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(acct => `
+                <tr>
+                    <td>${acct.name}</td>
+                    <td>${acct.type}</td>
+                    <td>¥${(parseFloat(acct.balance) || 0).toFixed(2)}</td>
+                    <td>${formatDate(acct.updated_at || acct.update_time)}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteAccount(${acct.id})">删除</button></td>
+                </tr>
+            `).join('');
+        } catch (err) {
+            console.error('加载账户失败:', err);
+        }
+    }
+
+    async function deleteAccount(id) {
+        if (!confirm('确定要删除此账户吗？')) return;
+        try {
+            await jsonRequest(`/api/accounts/${id}`, 'DELETE');
+            showAlert('删除成功', 'success');
+            loadAccounts();
+        } catch (err) {
+            showAlert('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    document.getElementById('btn-add-account').addEventListener('click', async function () {
+        const name = document.getElementById('acct-name').value;
+        const type = document.getElementById('acct-type').value;
+        const balance = parseFloat(document.getElementById('acct-balance').value) || 0;
+        if (!name) { showAlert('请输入账户名称', 'error'); return; }
+        try {
+            await jsonRequest('/api/accounts', 'POST', { name: name, type: type, balance: balance });
+            showAlert('账户添加成功', 'success');
+            document.getElementById('acct-name').value = '';
+            document.getElementById('acct-balance').value = '';
+            loadAccounts();
+        } catch (err) {
+            showAlert('添加失败: ' + err.message, 'error');
+        }
+    });
+
+    document.getElementById('btn-recalc-accounts').addEventListener('click', async function () {
+        const btn = this;
+        const statusEl = document.getElementById('recalc-status');
+        btn.disabled = true;
+        statusEl.textContent = '正在统计...';
+        try {
+            const res = await jsonRequest('/api/accounts/recalc', 'POST');
+            if (res.error) {
+                statusEl.textContent = '❌ ' + res.error;
+            } else {
+                statusEl.textContent = `✅ 更新成功，总余额: ¥${(res.total_balance || 0).toFixed(2)}，匹配账户 ${res.accounts_updated || 0} 个`;
+                loadAccounts();
+            }
+        } catch (err) {
+            statusEl.textContent = '❌ ' + err.message;
+        }
+        btn.disabled = false;
+        setTimeout(() => { if (statusEl.textContent) statusEl.textContent = ''; }, 5000);
+    });
+
+    // ===== 去重检测 =====
+    let dedupPairs = [];
+
+    document.getElementById('btn-find-duplicates').addEventListener('click', async function () {
+        const btn = this;
+        const statusEl = document.getElementById('dedup-status');
+        btn.disabled = true;
+        statusEl.textContent = '正在扫描...';
+        document.getElementById('dedup-results').style.display = 'none';
+
+        try {
+            const minutes = parseInt(document.getElementById('dedup-time-window').value) || 1;
+            const res = await jsonRequest('/api/transactions/dedup/find', 'POST', { time_window: minutes });
+            dedupPairs = res.pairs || [];
+
+            if (dedupPairs.length === 0) {
+                statusEl.textContent = '✅ 未发现重复交易';
+                document.getElementById('dedup-results').style.display = 'none';
+            } else {
+                statusEl.textContent = `✅ 发现 ${dedupPairs.length} 对重复交易`;
+                renderDedupTable();
+            }
+        } catch (err) {
+            statusEl.textContent = '❌ ' + err.message;
+        }
+        btn.disabled = false;
+    });
+
+    function renderDedupTable() {
+        document.getElementById('dedup-results').style.display = 'block';
+        document.getElementById('dedup-count').textContent = `共 ${dedupPairs.length} 对重复交易`;
+        document.getElementById('btn-delete-all-duplicates').style.display = dedupPairs.length > 0 ? 'inline-block' : 'none';
+
+        const tbody = document.getElementById('dedup-body');
+        if (dedupPairs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="10" class="empty-state">暂无重复交易</td></tr>';
+            return;
+        }
+        tbody.innerHTML = dedupPairs.map((p, idx) => {
+            const a = p.pair[0], b = p.pair[1];
+            const amount = Math.abs(a.amount);
+            const direction = a.direction === 'expense' ? '-' : '+';
+            const halfIdx = idx * 2; // each pair uses two checkbox indices
+            return `<tr>
+                <td><input type="checkbox" class="dedup-cb" value="${b.id}" data-pair="${idx}" checked></td>
+                <td title="${a.description || ''}">${a.datetime ? a.datetime.slice(5, 16) : '-'}</td>
+                <td title="${a.description || ''}">${a.merchant || '-'}</td>
+                <td style="color:${a.direction === 'expense' ? '#e53e3e' : '#38a169'};font-weight:600;">${direction}¥${amount.toFixed(2)}</td>
+                <td>${(a.source || '') + (a.account ? '/' + a.account : '')}</td>
+                <td title="${b.description || ''}">${b.datetime ? b.datetime.slice(5, 16) : '-'}</td>
+                <td title="${b.description || ''}">${b.merchant || '-'}</td>
+                <td>${(b.source || '') + (b.account ? '/' + b.account : '')}</td>
+                <td style="color:#718096;">${p.time_diff_seconds}s</td>
+            </tr>`;
+        }).join('');
+
+        document.getElementById('dedup-select-all').addEventListener('change', function () {
+            document.querySelectorAll('.dedup-cb').forEach(cb => cb.checked = this.checked);
+        });
+    }
+
+    async function deleteDedupByIds(ids) {
+        if (!ids || ids.length === 0) return;
+        try {
+            const res = await jsonRequest('/api/transactions/dedup/batch-delete', 'POST', { ids });
+            if (res.deleted > 0) {
+                showAlert(`已删除 ${res.deleted} 条重复交易`, 'success');
+                // 从列表中去掉已删除的项
+                dedupPairs = dedupPairs.filter(p => !ids.includes(p.pair[1].id) && !ids.includes(p.pair[0].id));
+                renderDedupTable();
+                document.getElementById('dedup-status').textContent = `剩余 ${dedupPairs.length} 对`;
+            }
+        } catch (err) {
+            showAlert('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    document.getElementById('btn-delete-selected').addEventListener('click', async function () {
+        const checked = Array.from(document.querySelectorAll('.dedup-cb:checked')).map(cb => cb.value);
+        if (checked.length === 0) { showAlert('请选择要删除的交易', 'error'); return; }
+        if (!await showConfirmModal('删除选中', `确定删除选中的 ${checked.length} 条交易吗？`)) return;
+        deleteDedupByIds(checked);
+    });
+
+    document.getElementById('btn-delete-all-duplicates').addEventListener('click', async function () {
+        const ids = dedupPairs.flatMap(p => [p.pair[1].id]);  // 删除第二条（重复的那条）
+        if (ids.length === 0) return;
+        if (!await showConfirmModal('删除全部重复', `确定删除全部 ${ids.length} 条重复交易吗？（每对保留第一条）`)) return;
+        deleteDedupByIds(ids);
+    });
+
+    // ===== 债务管理 =====
+    async function loadDebts() {
+        try {
+            const res = await fetch('/api/debts');
+            const data = await res.json();
+            const tbody = document.getElementById('debt-body');
+            const items = Array.isArray(data) ? data : [];
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无债务</td></tr>';
+                return;
+            }
+            tbody.innerHTML = items.map(d => {
+                const rate = parseFloat(d.interest_rate) || 0;
+                const remaining = parseFloat(d.remaining_amount) || 0;
+                const total = parseFloat(d.total_amount) || 0;
+                const pct = total > 0 ? ((1 - remaining / total) * 100) : 0;
+                const isClosed = d.status === 'closed';
+                return `<tr style="${isClosed ? 'opacity:0.6;' : ''}">
+                    <td><strong>${d.reason || '-'}</strong></td>
+                    <td>${d.creditor || '-'}</td>
+                    <td>¥${total.toFixed(2)}</td>
+                    <td>¥${remaining.toFixed(2)} <span style="color:${pct > 0 ? '#38a169' : '#718096'};font-size:12px;">(${pct.toFixed(1)}%)</span></td>
+                    <td>${rate > 0 ? rate + '%' : '-'}</td>
+                    <td>${isClosed ? '<span style="color:#38a169;">已结清</span>' : '<span style="color:#dd6b20;">进行中</span>'}</td>
+                    <td style="white-space:nowrap;">
+                        ${isClosed ? '' : `<button class="btn btn-sm btn-success" onclick="repayDebt(${d.id})">还款</button>`}
+                        <button class="btn btn-danger btn-sm" onclick="deleteDebt(${d.id})">删除</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        } catch (err) {
+            console.error('加载债务失败:', err);
+        }
+    }
+
+    async function repayDebt(id) {
+        const amt = prompt('请输入还款金额：');
+        if (amt === null) return;
+        const val = parseFloat(amt);
+        if (isNaN(val) || val <= 0) { showAlert('请输入有效金额', 'error'); return; }
+        try {
+            const res = await jsonRequest(`/api/debts/${id}/repay`, 'POST', { amount: val });
+            if (res.remaining <= 0) showAlert('还款成功，债务已结清！', 'success');
+            else showAlert(`还款成功，剩余 ¥${res.remaining.toFixed(2)}`, 'success');
+            loadDebts();
+        } catch (err) { showAlert('还款失败: ' + err.message, 'error'); }
+    }
+
+    async function deleteDebt(id) {
+        if (!confirm('确定删除此债务记录？')) return;
+        try { await jsonRequest(`/api/debts/${id}`, 'DELETE'); showAlert('已删除', 'success'); loadDebts(); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('btn-add-debt').addEventListener('click', async function () {
+        const reason = document.getElementById('debt-reason').value;
+        const total = parseFloat(document.getElementById('debt-total').value) || 0;
+        if (!reason || !total) { showAlert('请输入负债原因和总金额', 'error'); return; }
+        try {
+            await jsonRequest('/api/debts', 'POST', {
+                reason, total_amount: total,
+                remaining_amount: parseFloat(document.getElementById('debt-remaining').value) || undefined,
+                interest_rate: parseFloat(document.getElementById('debt-rate').value) || 0,
+                creditor: document.getElementById('debt-creditor').value,
+                due_date: document.getElementById('debt-due').value || undefined,
+                repayment_plan: document.getElementById('debt-plan').value,
+            });
+            showAlert('负债已添加', 'success');
+            ['debt-reason','debt-total','debt-remaining','debt-rate','debt-creditor','debt-due','debt-plan'].forEach(id => document.getElementById(id).value = '');
+            loadDebts();
+        } catch (err) { showAlert('添加失败: ' + err.message, 'error'); }
+    });
+
+    // ===== 固定收支 =====
+    async function loadFixedItems(type) {
+        try {
+            const res = await fetch(`/api/fixed-items?type=${type}`);
+            const data = await res.json();
+            const tbody = document.getElementById(`fixed-${type}-body`);
+            const items = data.items || data.data || Array.isArray(data) ? data : [];
+            if (items.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="${type === 'income' ? 7 : 6}" class="empty-state">暂无数据</td></tr>`;
+                return;
+            }
+            const isIncome = type === 'income';
+            tbody.innerHTML = await Promise.all(items.map(async item => {
+                const confirmed = item.note && item.note.includes('confirmed:');
+                let termLabel = '<span style="color:#718096;font-size:12px;">永久</span>';
+                try {
+                    const termRes = await fetch(`/api/fixed-items/${item.id}/term`);
+                    const termData = await termRes.json();
+                    if (termData && termData.has_term) {
+                        const sm = termData.start_month || '';
+                        const em = termData.end_month || '';
+                        if (sm && em) {
+                            termLabel = `<span style="color:#2b6cb0;font-size:12px;cursor:pointer;" onclick="showTermDetail(${item.id},'${item.name}')">${sm} ~ ${em} ${termData.is_installment ? `(分期 ${termData.paid_periods||0}/${termData.total_periods||0})` : ''}</span>`;
+                        } else {
+                            termLabel = `<span style="color:#2b6cb0;font-size:12px;cursor:pointer;" onclick="showTermDetail(${item.id},'${item.name}')">${termData.is_installment ? '分期' : '固定期限'} (${termData.paid_periods||0}/${termData.total_periods||0})</span>`;
+                        }
+                    }
+                } catch(e) {}
+                return `<tr>
+                    <td>${item.name}</td>
+                    <td>¥${(parseFloat(item.amount) || 0).toFixed(2)}</td>
+                    <td>每月 ${item.day_of_month || item.day || '?'} 号</td>
+                    <td>${item.category}</td>
+                    <td>${termLabel}</td>
+                    ${isIncome ? `<td>${confirmed ? '已确认' : '<span style="color:#dd6b20;">待确认</span>'}</td>` : ''}
+                    <td>
+                        <button class="btn btn-sm" onclick="setTerm(${item.id},'${item.name}','${type}')">期限</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteFixed(${item.id}, '${type}')">删除</button>
+                    </td>
+                </tr>`;
+            })).then(rows => rows.join(''));
+        } catch (err) { console.error(`加载固定${type}失败:`, err); }
+    }
+
+    async function deleteFixed(id, type) {
+        if (!confirm('确定要删除吗？')) return;
+        try { await jsonRequest(`/api/fixed-items/${id}`, 'DELETE'); showAlert('删除成功', 'success'); loadFixedItems(type); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    document.querySelectorAll('.btn-add-fixed').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const type = this.dataset.type;
+            const name = document.querySelector(`.fixed-name[data-type="${type}"]`).value;
+            const amount = parseFloat(document.querySelector(`.fixed-amount[data-type="${type}"]`).value) || 0;
+            const day = parseInt(document.querySelector(`.fixed-day[data-type="${type}"]`).value) || 1;
+            const category = document.querySelector(`.fixed-category[data-type="${type}"]`).value;
+            const startMonth = document.querySelector(`.fixed-start[data-type="${type}"]`).value || null;
+            const endMonth = document.querySelector(`.fixed-end[data-type="${type}"]`).value || null;
+            if (!name) { showAlert('请输入名称', 'error'); return; }
+            try {
+                await jsonRequest('/api/fixed-items', 'POST', { name, amount, day_of_month: day, category, type, start_month: startMonth, end_month: endMonth });
+                showAlert('添加成功', 'success');
+                document.querySelector(`.fixed-name[data-type="${type}"]`).value = '';
+                document.querySelector(`.fixed-amount[data-type="${type}"]`).value = '';
+                document.querySelector(`.fixed-day[data-type="${type}"]`).value = '';
+                document.querySelector(`.fixed-start[data-type="${type}"]`).value = '';
+                document.querySelector(`.fixed-end[data-type="${type}"]`).value = '';
+                loadFixedItems(type);
+            } catch (err) { showAlert('添加失败: ' + err.message, 'error'); }
+        });
+    });
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById(this.dataset.tab).classList.add('active');
+            loadFixedItems(this.dataset.tab === 'fixed-income' ? 'income' : 'expense');
+        });
+    });
+
+    // ===== 期限设置 =====
+    let currentTermItemId = null;
+    let currentTermType = null;
+
+    async function setTerm(itemId, itemName, type) {
+        currentTermItemId = itemId;
+        currentTermType = type;
+        let termHtml = `<div class="card" id="term-dialog" style="border:2px solid #2b6cb0;margin-bottom:16px;"><h3>期限设置 — ${itemName}</h3>`;
+        try {
+            const res = await fetch(`/api/fixed-items/${itemId}/term`);
+            const data = await res.json();
+            const has = data && data.has_term;
+            termHtml += `
+                <div class="form-row" style="flex-wrap:wrap;">
+                    <label style="display:flex;align-items:center;gap:8px;width:100%;margin-bottom:8px;">
+                        <input type="checkbox" id="term-has-term" ${has ? 'checked' : ''} onchange="toggleTermFields()">启用期限管理
+                    </label>
+                </div>
+                <div id="term-fields" style="${has ? '' : 'display:none;'}">
+                    <div class="form-row" style="flex-wrap:wrap;">
+                        <div class="form-group"><label>总期数</label><input type="number" id="term-total" value="${data.total_periods || 0}" min="0" style="width:80px;"></div>
+                        <div class="form-group"><label>已还期数</label><input type="number" id="term-paid" value="${data.paid_periods || 0}" min="0" style="width:80px;"></div>
+                        <div class="form-group"><label>每期金额</label><input type="number" id="term-period-amt" value="${data.period_amount || ''}" step="0.01" style="width:120px;"></div>
+                        <div class="form-group"><label>开始月份</label><input type="month" id="term-start" value="${data.start_month || ''}" style="width:140px;"></div>
+                        <div class="form-group"><label>结束月份</label><input type="month" id="term-end" value="${data.end_month || ''}" style="width:140px;"></div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;gap:8px;">
+                            <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="term-installment" ${data.is_installment ? 'checked' : ''}>分期付款</label>
+                            <label style="display:flex;align-items:center;gap:4px;"><input type="checkbox" id="term-auto-stop" ${data.auto_stop ? 'checked' : ''}>到期自动停止</label>
+                        </div>
+                    </div>
+                    <div class="form-row" style="margin-top:8px;">
+                        <button class="btn btn-success" onclick="saveTerm()">保存</button>
+                        <button class="btn btn-danger" onclick="deleteTerm()" style="margin-left:8px;">清除期限</button>
+                        <button class="btn" onclick="closeTerm()" style="margin-left:8px;">关闭</button>
+                    </div>
+                    <div id="term-payments" style="margin-top:12px;"></div>
+                </div>`;
+        } catch(e) { termHtml += `<p style="color:red;">加载失败</p>`; }
+        termHtml += `</div>`;
+        const existing = document.getElementById('term-dialog');
+        if (existing) existing.remove();
+        const card = document.querySelector('.card .tabs').closest('.card');
+        card.parentNode.insertBefore(document.createRange().createContextualFragment(termHtml), card.nextSibling);
+        if (document.getElementById('term-has-term').checked) loadPayments(itemId);
+    }
+
+    function toggleTermFields() { document.getElementById('term-fields').style.display = document.getElementById('term-has-term').checked ? '' : 'none'; }
+    function closeTerm() { const el = document.getElementById('term-dialog'); if (el) el.remove(); }
+
+    async function saveTerm() {
+        const hasTerm = document.getElementById('term-has-term').checked;
+        if (!hasTerm) {
+            await jsonRequest(`/api/fixed-items/${currentTermItemId}/term`, 'PUT', { has_term: false });
+            showAlert('期限已清除', 'success'); closeTerm(); loadFixedItems(currentTermType); return;
+        }
+        await jsonRequest(`/api/fixed-items/${currentTermItemId}/term`, 'PUT', {
+            has_term: true,
+            total_periods: parseInt(document.getElementById('term-total').value) || 0,
+            paid_periods: parseInt(document.getElementById('term-paid').value) || 0,
+            period_amount: parseFloat(document.getElementById('term-period-amt').value) || null,
+            start_month: document.getElementById('term-start').value || null,
+            end_month: document.getElementById('term-end').value || null,
+            is_installment: document.getElementById('term-installment').checked ? 1 : 0,
+            auto_stop: document.getElementById('term-auto-stop').checked ? 1 : 0,
+        });
+        showAlert('期限保存成功', 'success');
+        loadPayments(currentTermItemId);
+        loadFixedItems(currentTermType);
+    }
+
+    async function deleteTerm() {
+        if (!confirm('确定清除此项目的期限设置？')) return;
+        await jsonRequest(`/api/fixed-items/${currentTermItemId}/term`, 'DELETE');
+        showAlert('期限已清除', 'success'); closeTerm();
+    }
+
+    async function loadPayments(itemId) {
+        try {
+            const res = await fetch(`/api/fixed-items/${itemId}/term`);
+            const term = await res.json();
+            if (!term || !term.payments || term.payments.length === 0) { document.getElementById('term-payments').innerHTML = ''; return; }
+            document.getElementById('term-payments').innerHTML = `
+                <h4 style="font-size:14px;margin-bottom:8px;">分期记录</h4>
+                <div class="table-wrapper"><table class="table" style="font-size:13px;">
+                    <thead><tr><th>期数</th><th>到期月份</th><th>金额</th><th>状态</th><th>已还日期</th><th>操作</th></tr></thead>
+                    <tbody>${term.payments.map(p => `<tr>
+                        <td>第 ${p.period_number} 期</td>
+                        <td>${p.due_month}</td>
+                        <td>¥${(parseFloat(p.amount)||0).toFixed(2)}</td>
+                        <td>${p.status === 'paid' ? '<span style="color:#38a169;">已还</span>' : '<span style="color:#dd6b20;">待还</span>'}</td>
+                        <td>${p.paid_date || '-'}</td>
+                        <td>${p.status === 'pending' ? `<button class="btn btn-sm btn-success" onclick="markPaid(${p.id})">标记已还</button>` : '-'}</td>
+                    </tr>`).join('')}</tbody>
+                </table></div>`;
+        } catch(e) {}
+    }
+
+    async function markPaid(paymentId) {
+        try { await jsonRequest(`/api/installments/${paymentId}/pay`, 'POST', {}); showAlert('已标记为已还', 'success'); loadPayments(currentTermItemId); loadFixedItems(currentTermType); }
+        catch(err) { showAlert('操作失败: ' + err.message, 'error'); }
+    }
+
+    async function showTermDetail(itemId, itemName) {
+        const type = document.querySelector('.tab-content.active').id === 'fixed-income' ? 'income' : 'expense';
+        setTerm(itemId, itemName, type);
+    }
+
+    // ===== 收入到账确认 =====
+    async function loadPendingIncome() {
+        try {
+            const res = await fetch('/api/income/pending');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('pending-income-body');
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无待确认收入</td></tr>'; return; }
+            tbody.innerHTML = items.map(item => `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>¥${(parseFloat(item.amount) || 0).toFixed(2)}</td>
+                    <td>每月 ${item.day_of_month || '?'} 号</td>
+                    <td>${item.category}</td>
+                    <td><input type="number" id="confirm-amt-${item.id}" value="${item.amount}" step="0.01" style="width:100px;"></td>
+                    <td><button class="btn btn-success btn-sm" onclick="confirmIncome(${item.id})">确认到账</button></td>
+                </tr>
+            `).join('');
+        } catch (err) { console.error('加载待确认收入失败:', err); }
+    }
+
+    async function confirmIncome(itemId) {
+        const actualAmount = parseFloat(document.getElementById(`confirm-amt-${itemId}`).value) || 0;
+        if (!actualAmount) { showAlert('请输入有效金额', 'error'); return; }
+        try { await jsonRequest('/api/income/confirm', 'POST', { item_id: itemId, actual_amount: actualAmount }); showAlert('收入确认成功', 'success'); loadPendingIncome(); loadFixedItems('income'); }
+        catch (err) { showAlert('确认失败: ' + err.message, 'error'); }
+    }
+
+    // ===== 储蓄目标 =====
+    async function loadSavingsGoals() {
+        try {
+            const res = await fetch('/api/savings-goals');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('savings-body');
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无储蓄目标</td></tr>'; return; }
+            tbody.innerHTML = items.map(g => {
+                const target = parseFloat(g.target_amount) || 0;
+                const current = parseFloat(g.current_amount) || 0;
+                const progress = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+                return `<tr>
+                    <td><strong>${g.name}</strong></td>
+                    <td>¥${target.toFixed(2)}</td><td>¥${current.toFixed(2)}</td>
+                    <td><div style="background:#edf2f7;border-radius:4px;height:20px;width:120px;display:inline-block;vertical-align:middle;"><div style="background:#38a169;border-radius:4px;height:100%;width:${progress}%;transition:width 0.3s;"></div></div><span style="margin-left:4px;font-size:13px;">${progress.toFixed(1)}%</span></td>
+                    <td>${g.target_date || '-'}</td><td>¥${(parseFloat(g.monthly_save) || 0).toFixed(2)}</td>
+                    <td><button class="btn btn-sm" onclick="updateSavingsProgress(${g.id}, ${current})">更新进度</button><button class="btn btn-danger btn-sm" onclick="deleteSavingsGoal(${g.id})">删除</button></td>
+                </tr>`;
+            }).join('');
+        } catch (err) { console.error('加载储蓄目标失败:', err); }
+    }
+
+    async function updateSavingsProgress(id, currentAmount) {
+        const newAmount = prompt('当前已储蓄金额：', currentAmount);
+        if (newAmount === null) return;
+        const val = parseFloat(newAmount);
+        if (isNaN(val)) { showAlert('请输入有效数字', 'error'); return; }
+        try { await jsonRequest(`/api/savings-goals/${id}`, 'PUT', { current_amount: val }); showAlert('进度已更新', 'success'); loadSavingsGoals(); }
+        catch (err) { showAlert('更新失败: ' + err.message, 'error'); }
+    }
+
+    async function deleteSavingsGoal(id) {
+        if (!confirm('确定删除此储蓄目标？')) return;
+        try { await jsonRequest(`/api/savings-goals/${id}`, 'DELETE'); showAlert('已删除', 'success'); loadSavingsGoals(); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('btn-add-savings').addEventListener('click', async function () {
+        const name = document.getElementById('sg-name').value;
+        const target = parseFloat(document.getElementById('sg-target').value) || 0;
+        const current = parseFloat(document.getElementById('sg-current').value) || 0;
+        const date = document.getElementById('sg-date').value;
+        const monthly = parseFloat(document.getElementById('sg-monthly').value) || 0;
+        if (!name || !target) { showAlert('请输入目标名称和金额', 'error'); return; }
+        try {
+            await jsonRequest('/api/savings-goals', 'POST', { name, target_amount: target, current_amount: current, target_date: date || null, monthly_save: monthly });
+            showAlert('储蓄目标已创建', 'success');
+            ['sg-name','sg-target','sg-current','sg-date','sg-monthly'].forEach(id => document.getElementById(id).value = '');
+            loadSavingsGoals();
+        } catch (err) { showAlert('创建失败: ' + err.message, 'error'); }
+    });
+
+    // ===== 理财账户 =====
+    async function loadInvestAccounts() {
+        try {
+            const res = await fetch('/api/investment-accounts');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('invest-body');
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无理财账户</td></tr>'; return; }
+            tbody.innerHTML = items.map(a => {
+                const principal = parseFloat(a.principal) || 0;
+                const marketValue = parseFloat(a.market_value) || 0;
+                const gain = principal > 0 ? ((marketValue - principal) / principal * 100) : 0;
+                return `<tr>
+                    <td><strong>${a.name}</strong></td><td>${a.account_type}</td><td>${a.institution || '-'}</td>
+                    <td>¥${principal.toFixed(2)}</td><td>¥${marketValue.toFixed(2)}</td>
+                    <td style="color:${gain >= 0 ? '#38a169' : '#e53e3e'}">${gain >= 0 ? '+' : ''}${gain.toFixed(2)}%</td>
+                    <td>${a.valuation_date || '-'}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteInvestAccount(${a.id})">删除</button></td>
+                </tr>`;
+            }).join('');
+        } catch (err) { console.error('加载理财账户失败:', err); }
+    }
+
+    async function deleteInvestAccount(id) {
+        if (!confirm('确定删除此理财账户？')) return;
+        try { await jsonRequest(`/api/investment-accounts/${id}`, 'DELETE'); showAlert('已删除', 'success'); loadInvestAccounts(); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('btn-add-invest').addEventListener('click', async function () {
+        const name = document.getElementById('inv-name').value;
+        if (!name) { showAlert('请输入账户名称', 'error'); return; }
+        try {
+            await jsonRequest('/api/investment-accounts', 'POST', {
+                name, account_type: document.getElementById('inv-type').value,
+                institution: document.getElementById('inv-inst').value,
+                principal: parseFloat(document.getElementById('inv-principal').value) || 0,
+                market_value: parseFloat(document.getElementById('inv-value').value) || 0,
+                valuation_date: document.getElementById('inv-date').value || null,
+            });
+            showAlert('理财账户已添加', 'success');
+            ['inv-name','inv-inst','inv-principal','inv-value','inv-date'].forEach(id => document.getElementById(id).value = '');
+            loadInvestAccounts();
+        } catch (err) { showAlert('添加失败: ' + err.message, 'error'); }
+    });
+
+    // ===== 分类规则 =====
+    async function loadRules() {
+        try {
+            const res = await fetch('/api/category-rules');
+            const data = await res.json();
+            const tbody = document.getElementById('rule-body');
+            const items = Array.isArray(data) ? data : (data.rules || data.items || data.data || []);
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无规则</td></tr>'; return; }
+            tbody.innerHTML = items.map(rule => {
+                const isActive = rule.is_active || rule.is_active === undefined || rule.is_active === 1;
+                return `<tr><td>${rule.keyword}</td><td>${rule.category}</td>
+                    <td><button class="btn btn-sm ${isActive ? 'btn-success' : ''}" onclick="toggleRule(${rule.id})">${isActive ? '启用' : '禁用'}</button></td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteRule(${rule.id})">删除</button></td></tr>`;
+            }).join('');
+        } catch (err) { console.error('加载规则失败:', err); }
+    }
+
+    async function toggleRule(id) {
+        try { await jsonRequest(`/api/category-rules/${id}/toggle`, 'POST'); showAlert('规则状态已切换', 'success'); loadRules(); }
+        catch (err) { showAlert('切换失败: ' + err.message, 'error'); }
+    }
+    async function deleteRule(id) {
+        if (!confirm('确定要删除此规则吗？')) return;
+        try { await jsonRequest(`/api/category-rules/${id}`, 'DELETE'); showAlert('删除成功', 'success'); loadRules(); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('btn-add-rule').addEventListener('click', async function () {
+        const keyword = document.getElementById('rule-keyword').value;
+        const category = document.getElementById('rule-category').value;
+        if (!keyword) { showAlert('请输入关键词', 'error'); return; }
+        try { await jsonRequest('/api/category-rules', 'POST', { keyword, category }); showAlert('规则添加成功', 'success'); document.getElementById('rule-keyword').value = ''; loadRules(); }
+        catch (err) { showAlert('添加失败: ' + err.message, 'error'); }
+    });
+
+    // ===== 分类管理 =====
+    async function loadCategoriesMgmt() {
+        try {
+            const res = await fetch('/api/category-options');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('category-mgmt-body');
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="empty-state">暂无自定义分类</td></tr>'; return; }
+            const parentSelect = document.getElementById('new-parent-cat');
+            const parents = items.filter(c => !c.parent_id);
+            parentSelect.innerHTML = '<option value="">新增一级分类</option>' + parents.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+            tbody.innerHTML = items.map(c => {
+                const parent = c.parent_id ? items.find(p => p.id === c.parent_id) : null;
+                const label = parent ? `${parent.name}/${c.name}` : c.name;
+                return `<tr><td>${label}</td><td><span style="color: #718096; font-size: 13px;">${c.parent_id ? '二级分类' : '一级分类'}</span></td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteCategoryMgmt(${c.id})">删除</button></td></tr>`;
+            }).join('');
+        } catch (err) { console.error('加载分类失败:', err); }
+    }
+
+    async function deleteCategoryMgmt(id) {
+        if (!confirm('确定删除此分类？已有交易不会受影响。')) return;
+        try { await jsonRequest(`/api/categories/${id}`, 'DELETE'); showAlert('已删除', 'success'); loadCategoriesMgmt(); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('btn-add-category').addEventListener('click', async function () {
+        const input = document.getElementById('new-cat-name');
+        const parentId = document.getElementById('new-parent-cat').value;
+        const value = input.value.trim();
+        if (!value) { showAlert('请输入分类名称', 'error'); return; }
+        try {
+            const payload = { name: value };
+            if (parentId) payload.parent_id = parseInt(parentId, 10);
+            await jsonRequest('/api/categories', 'POST', payload);
+            showAlert(parentId ? '二级分类添加成功' : '一级分类添加成功', 'success');
+            input.value = '';
+            document.getElementById('new-parent-cat').value = '';
+            loadCategoriesMgmt();
+        } catch (err) { showAlert('添加失败: ' + err.message, 'error'); }
+    });
+
+    // ===== 标签管理 =====
+    async function loadTagsMgmt() {
+        try {
+            const res = await fetch('/api/tags');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('tags-body');
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无标签</td></tr>'; return; }
+            tbody.innerHTML = items.map(t => `<tr>
+                <td><span style="display:inline-block;background:${t.color || '#4299e1'};color:white;padding:2px 8px;border-radius:4px;font-size:13px;">${t.name}</span></td>
+                <td><code style="background:#f7fafc;padding:2px 6px;border-radius:3px;">${t.color || '#4299e1'}</code></td>
+                <td>${formatDate(t.created_at)}</td>
+                <td>
+                    <button class="btn btn-sm" onclick="renameTag(${t.id}, '${t.name}', '${t.color || '#4299e1'}')">编辑</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTagMgmt(${t.id})">删除</button>
+                </td>
+            </tr>`).join('');
+        } catch (err) { console.error('加载标签失败:', err); }
+    }
+
+    async function deleteTagMgmt(id) {
+        if (!confirm('确定删除此标签？该标签会从所有交易上移除。')) return;
+        try { await jsonRequest(`/api/tags/${id}`, 'DELETE'); showAlert('标签已删除', 'success'); loadTagsMgmt(); }
+        catch (err) { showAlert('删除失败: ' + err.message, 'error'); }
+    }
+
+    async function renameTag(id, oldName, oldColor) {
+        const newName = prompt('修改标签名：', oldName);
+        if (newName === null) return;
+        const trimmed = newName.trim();
+        if (!trimmed) { showAlert('标签名不能为空', 'error'); return; }
+        try { await jsonRequest(`/api/tags/${id}`, 'PUT', { name: trimmed, color: oldColor }); showAlert('已更新', 'success'); loadTagsMgmt(); }
+        catch (err) { showAlert('更新失败: ' + err.message, 'error'); }
+    }
+
+    document.getElementById('btn-add-tag').addEventListener('click', async function () {
+        const name = document.getElementById('new-tag-name').value.trim();
+        const color = document.getElementById('new-tag-color').value;
+        if (!name) { showAlert('请输入标签名称', 'error'); return; }
+        try {
+            await jsonRequest('/api/tags', 'POST', { name, color });
+            showAlert('标签添加成功', 'success');
+            document.getElementById('new-tag-name').value = '';
+            loadTagsMgmt();
+        } catch (err) { showAlert('添加失败: ' + err.message, 'error'); }
+    });
+
+    // ===== 数据备份 =====
+    async function loadBackups() {
+        try {
+            const res = await fetch('/api/backup/list');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const tbody = document.getElementById('backup-body');
+            if (items.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无备份</td></tr>'; return; }
+            tbody.innerHTML = items.map(b => `<tr><td>${b.path}</td><td>${(b.size / 1024).toFixed(1)} KB</td><td>${b.mtime}</td>
+                <td><button class="btn btn-sm" onclick="restoreBackup('${b.path}')">恢复</button></td></tr>`).join('');
+        } catch (err) { console.error('加载备份列表失败:', err); }
+    }
+
+    document.getElementById('btn-create-backup').addEventListener('click', async function () {
+        try { await jsonRequest('/api/backup', 'POST'); showAlert('备份创建成功', 'success'); loadBackups(); }
+        catch (err) { showAlert('备份失败: ' + err.message, 'error'); }
+    });
+
+    async function restoreBackup(filename) {
+        if (!confirm(`确定要从备份 "${filename}" 恢复吗？当前数据将被覆盖。`)) return;
+        try { const res = await jsonRequest('/api/backup/restore', 'POST', { backup: filename }); showAlert(res.message || '恢复成功', 'success'); }
+        catch (err) { showAlert('恢复失败: ' + err.message, 'error'); }
+    }
+
+    // ===== 页面初始化 =====
+    document.addEventListener('DOMContentLoaded', function () {
+        loadSettings();
+        loadAccounts();
+        loadDebts();
+        loadFixedItems('income');
+        loadRules();
+        loadPendingIncome();
+        loadSavingsGoals();
+        loadInvestAccounts();
+        loadCategoriesMgmt();
+        loadTagsMgmt();
+        loadBackups();
+    });
+</script>
+{% endblock %}

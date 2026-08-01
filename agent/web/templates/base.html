@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}财务助手{% endblock %}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-brand">💰 财务助手</div>
+        <div class="nav-links">
+            <a href="/" class="{% if request.path == '/' %}active{% endif %}">仪表盘</a>
+            <a href="/transactions" class="{% if 'transactions' in request.path %}active{% endif %}">交易</a>
+            <a href="/pending" class="{% if 'pending' in request.path %}active{% endif %}">待分类 <span id="pending-count" class="badge"></span></a>
+            <a href="/chat" class="{% if 'chat' in request.path %}active{% endif %}">AI 问答</a>
+            <a href="/cashflow" class="{% if 'cashflow' in request.path %}active{% endif %}">未来流水</a>
+            <a href="/gifts" class="{% if 'gifts' in request.path %}active{% endif %}">随礼管理</a>
+            <a href="/monthly-analysis" class="{% if 'monthly-analysis' in request.path %}active{% endif %}">月度分析</a>
+            <a href="/tags" class="{% if 'tags' in request.path %}active{% endif %}">标签统计</a>
+            <a href="/settings" class="{% if 'settings' in request.path %}active{% endif %}">设置</a>
+        </div>
+    </nav>
+
+    <!-- 全局账期条（所有页面共享） -->
+    <div class="global-range-bar">
+        <span class="global-range-label">📅 账期</span>
+        <input type="date" id="global-range-start">
+        <span class="global-range-sep">~</span>
+        <input type="date" id="global-range-end">
+        <button class="btn btn-sm" id="btn-range-apply">应用</button>
+        <button class="btn btn-sm" id="btn-range-this-month">本月</button>
+        <button class="btn btn-sm" id="btn-range-prev-month">上月</button>
+        <button class="btn btn-sm" id="btn-range-clear">全部</button>
+        <span class="global-range-hint" id="global-range-hint"></span>
+    </div>
+
+    <!-- 主内容 -->
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script src="/static/js/main.js"></script>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

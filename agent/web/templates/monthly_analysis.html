@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}月度分析 - 财务助手{% endblock %}
+
+{% block content %}
+<div class="card" style="background:linear-gradient(135deg,#1a365d,#2b6cb0);color:white;padding:24px;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;">
+        <div><div style="font-size:13px;opacity:.8;">财务复盘</div><h1 style="font-size:28px;margin-top:6px;">月度分析</h1><p style="opacity:.85;margin-top:8px;">跟随上方全局账期，分析该期间的资金流向与环比变化。</p></div>
+        <div style="color:white;font-size:14px;" id="analysis-range-label"></div>
+    </div>
+</div>
+
+<div class="card-grid" id="analysis-summary">
+    <div class="card"><h3>本月收入</h3><div id="ma-income" style="font-size:25px;color:#38a169;font-weight:700;">--</div><small id="ma-income-change" style="color:#718096;"></small></div>
+    <div class="card"><h3>本月支出</h3><div id="ma-expense" style="font-size:25px;color:#e53e3e;font-weight:700;">--</div><small id="ma-expense-change" style="color:#718096;"></small></div>
+    <div class="card"><h3>本月结余</h3><div id="ma-net" style="font-size:25px;font-weight:700;">--</div><small id="ma-net-change" style="color:#718096;"></small></div>
+    <div class="card"><h3>日均支出</h3><div id="ma-daily" style="font-size:25px;color:#805ad5;font-weight:700;">--</div><small style="color:#718096;">按本月交易计算</small></div>
+</div>
+
+<div class="chart-row">
+    <div class="card"><h2>支出分类占比</h2><div class="chart-container"><canvas id="ma-category-chart"></canvas></div><div id="ma-category-empty" class="empty-state" style="display:none;">本月暂无支出分类</div></div>
+    <div class="card"><h2>近 6 个月趋势</h2><div class="chart-container"><canvas id="ma-trend-chart"></canvas></div></div>
+</div>
+
+<div class="card"><h2>与上月对比</h2><div id="ma-comparison" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;"></div></div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let categoryInstance = null, trendInstance = null;
+const colors = ['#2b6cb0','#e53e3e','#38a169','#d69e2e','#805ad5','#319795','#dd6b20','#d53f8c','#3182ce','#2f855a'];
+
+/** 日期加减天数，返回 YYYY-MM-DD */
+function shiftDate(dateStr, days) {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** 计算与当前账期等长的上一账期 {start, end} */
+function previousRange(start, end) {
+    const days = Math.round((new Date(end) - new Date(start)) / 86400000) + 1;
+    const prevEnd = shiftDate(start, -1);
+    const prevStart = shiftDate(prevEnd, -(days - 1));
+    return { start: prevStart, end: prevEnd };
+}
+
+function money(v) { return `¥${Number(v || 0).toFixed(2)}`; }
+function changeText(current, previous) { if (!previous) return '上一账期暂无数据'; const pct = ((current - previous) / Math.abs(previous) * 100); return `${pct >= 0 ? '↑' : '↓'} ${Math.abs(pct).toFixed(1)}% 较上一账期`; }
+
+async function loadAnalysis(range) {
+    const rangeParam = `start_date=${range.start}&end_date=${range.end}`;
+    const prev = previousRange(range.start, range.end);
+    const prevParam = `start_date=${prev.start}&end_date=${prev.end}`;
+    const [summaryRes, prevRes, categoriesRes, trendRes] = await Promise.all([
+        fetch(`/api/summary?${rangeParam}`), fetch(`/api/summary?${prevParam}`),
+        fetch(`/api/categories?${rangeParam}`), fetch('/api/trend?months=6')
+    ]);
+    const summary = await summaryRes.json(), previous = await prevRes.json(), categories = await categoriesRes.json(), trend = await trendRes.json();
+    const income = Number(summary.total_income || 0), expense = Number(summary.total_expense || 0), net = income - expense;
+    const pi = Number(previous.total_income || 0), pe = Number(previous.total_expense || 0), pn = pi - pe;
+    document.getElementById('ma-income').textContent = `+${money(income)}`; document.getElementById('ma-expense').textContent = `-${money(expense)}`;
+    const netEl = document.getElementById('ma-net'); netEl.textContent = `${net >= 0 ? '+' : ''}${money(net)}`; netEl.style.color = net >= 0 ? '#38a169' : '#e53e3e';
+    document.getElementById('ma-daily').textContent = money(summary.avg_daily_expense || summary.daily_average);
+    document.getElementById('ma-income-change').textContent = changeText(income, pi); document.getElementById('ma-expense-change').textContent = changeText(expense, pe); document.getElementById('ma-net-change').textContent = changeText(net, pn);
+    document.getElementById('analysis-range-label').textContent = `账期：${range.start} ~ ${range.end}`;
+    renderCategory(categories); renderTrend(trend); renderComparison({income, expense, net}, {income:pi, expense:pe, net:pn});
+}
+function renderCategory(items) {
+    items = Array.isArray(items) ? items : []; const canvas = document.getElementById('ma-category-chart'); document.getElementById('ma-category-empty').style.display = items.length ? 'none' : 'block'; canvas.style.display = items.length ? 'block' : 'none';
+    if (categoryInstance) categoryInstance.destroy(); if (!items.length) return;
+    categoryInstance = new Chart(canvas, {type:'doughnut',data:{labels:items.map(x=>x.name||x.category),datasets:[{data:items.map(x=>Number(x.amount||x.total)||0),backgroundColor:colors}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right'}}}});
+}
+function renderTrend(items) {
+    items = Array.isArray(items) ? items : []; if (trendInstance) trendInstance.destroy();
+    if (!items.length) { document.getElementById('ma-trend-chart').parentElement.innerHTML = '<div class="empty-state">暂无趋势数据</div>'; return; }
+    trendInstance = new Chart(document.getElementById('ma-trend-chart'), {type:'line',data:{labels:items.map(x=>x.year_month||x.month||x.label),datasets:[{label:'收入',data:items.map(x=>Number(x.total_income||x.income)||0),borderColor:'#38a169',backgroundColor:'rgba(56,161,105,.1)',fill:true,tension:.3},{label:'支出',data:items.map(x=>Number(x.total_expense||x.expense)||0),borderColor:'#e53e3e',backgroundColor:'rgba(229,62,62,.1)',fill:true,tension:.3}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{callback:v=>`¥${v}`}}},plugins:{tooltip:{callbacks:{label:ctx=>`${ctx.dataset.label}: ¥${ctx.parsed.y.toFixed(2)}`}}}}});
+}
+function renderComparison(current, previous) {
+    const rows = [['收入',current.income,previous.income,'#38a169'],['支出',current.expense,previous.expense,'#e53e3e'],['结余',current.net,previous.net,'#2b6cb0']];
+    document.getElementById('ma-comparison').innerHTML = rows.map(([label,now,old,color]) => `<div style="padding:16px;background:#f7fafc;border-radius:10px;border-left:4px solid ${color};"><div style="color:#718096;font-size:13px;">${label}</div><strong style="font-size:20px;color:${color};">${money(now)}</strong><div style="font-size:13px;color:#718096;margin-top:5px;">上一账期 ${money(old)} · ${changeText(now,old)}</div></div>`).join('');
+}
+document.addEventListener('DOMContentLoaded', () => {
+    const refresh = () => {
+        let range = getGlobalDateRange();
+        if (!range) {
+            // 全部账期下无"上一账期"可比，退化为本月
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, '0');
+            const last = new Date(y, now.getMonth() + 1, 0).getDate();
+            range = { start: `${y}-${m}-01`, end: `${y}-${m}-${String(last).padStart(2, '0')}` };
+            document.getElementById('analysis-range-label').textContent = '账期：全部数据（按本月展示）';
+        }
+        loadAnalysis(range).catch(e => console.error('加载月度分析失败', e));
+    };
+    refresh();
+    window.addEventListener('global-range-changed', refresh);
+});
+</script>
+{% endblock %}

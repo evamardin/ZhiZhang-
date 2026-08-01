@@ -1,0 +1,187 @@
+# AI4ACC 最小本体（MVP 版）
+# 目的：验证「本体驱动归一化 + 分类推理」的效果
+# 结构说明：
+#   - classes/relations: 概念与关系（模式层，最小化）
+#   - merchants: 商户实例（seed，来自真实账单高频商户）
+#     - name: 实体规范名
+#     - category: 关联分类（支持 父/子）
+#     - aliases: 精确别名（账单字符串 == alias）
+#     - keywords: 关键词包含匹配（账单字符串 contains keyword，门店变体用）
+# 推理链：alias 精确命中 > keyword 包含命中 > category 继承
+
+ontology:
+  version: 0.1
+  classes:
+    商户:
+      子类: [品牌商户, 门店商户, 组织, 个人]
+    分类:
+      餐饮: [咖啡, 快餐, 正餐, 零食饮料]
+      交通: [地铁, 公交, 单车, 打车]
+      日用百货: [超市]
+      旅行: [酒店, 交通票务]
+      通讯: []
+      学习: []
+      娱乐: [游戏]
+      住房: []
+  relations:
+    - 交易 -发生于-> 商户
+    - 交易 -属于-> 分类
+    - 门店商户 -隶属品牌-> 品牌商户
+    - 商户 -属于-> 分类
+
+merchants:
+  # ── 交通 ──
+  - name: 成都地铁
+    type: org
+    category: 交通/地铁
+    aliases: [成都地铁]
+    keywords: [成都地铁]           # 用品牌词做关键词，避免"地铁"误并其他城市
+  - name: 成都公交
+    type: org
+    category: 交通/公交
+    aliases: [成都公交新城市公司, 成都公交]
+    keywords: [成都公交]
+  - name: 哈啰出行
+    type: brand
+    category: 交通/单车
+    aliases: [哈啰出行]
+    keywords: [哈啰, 单车]
+  - name: 滴滴出行
+    type: brand
+    category: 交通/打车
+    aliases: [滴滴出行, 滴滴]
+    keywords: [滴滴]
+  - name: 铁路12306
+    type: org
+    category: 交通/交通票务
+    aliases: [12306, 铁路12306]
+    keywords: [铁路, 12306]
+  - name: 摩捷智行
+    type: brand
+    category: 交通/打车
+    aliases: [摩捷智行有限责任公司, 摩捷智行]
+    keywords: [摩捷]
+  # ── 餐饮 ──
+  - name: 瑞幸咖啡
+    type: brand
+    category: 餐饮/咖啡
+    aliases: [luckin coffee, luckin, 瑞幸咖啡, 瑞幸]
+    keywords: [luckin, 瑞幸]
+  - name: 星巴克
+    type: brand
+    category: 餐饮/咖啡
+    aliases: [星巴克, Starbucks]
+    keywords: [星巴克]
+  - name: 蒋记抄手
+    type: brand
+    category: 餐饮/快餐
+    aliases: [蒋记抄手]
+    keywords: [蒋记抄手]
+  - name: 钟永庆水饺
+    type: brand
+    category: 餐饮/快餐
+    aliases: [钟永庆水饺]
+    keywords: [钟永庆, 水饺]
+  - name: 隆广顺
+    type: brand
+    category: 餐饮/快餐
+    aliases: [隆广顺]
+    keywords: [隆广顺, 剁椒猪脚饭]
+  - name: 豪客来
+    type: brand
+    category: 餐饮/正餐
+    aliases: [中国豪客来牛排, 豪客来]
+    keywords: [豪客来, 牛排]
+  - name: 紫光园
+    type: brand
+    category: 餐饮/正餐
+    aliases: [紫光园]
+    keywords: [紫光园]
+  - name: 钱大妈
+    type: brand
+    category: 餐饮/零食饮料
+    aliases: [钱大妈]
+    keywords: [钱大妈]
+  # ── 日用百货 ──
+  - name: 朴朴超市
+    type: brand
+    category: 日用百货/超市
+    aliases: [朴朴超市]
+    keywords: [朴朴]
+  - name: 山姆会员商店
+    type: brand
+    category: 日用百货/超市
+    aliases: [山姆会员商店SamsCLUB, 山姆会员商店, Sam's Club, 山姆]
+    keywords: [山姆]
+  - name: 沃尔玛
+    type: brand
+    category: 日用百货/超市
+    aliases: [沃尔玛]
+    keywords: [沃尔玛]
+  - name: 金慧园超市
+    type: store
+    category: 日用百货/超市
+    aliases: [成都市温江区金慧园超市, 金慧园超市]
+    keywords: [金慧园]
+  - name: 迷你生鲜
+    type: store
+    category: 日用百货/超市
+    aliases: [迷你生鲜]
+    keywords: [生鲜]
+  # ── 旅行 ──
+  - name: 携程旅行
+    type: brand
+    category: 旅行/交通票务
+    aliases: [携程旅行网, 携程, 上海赫程国际旅行社有限公司]
+    keywords: [携程, 赫程]
+  - name: 华住会
+    type: brand
+    category: 旅行/酒店
+    aliases: [华住会, 华住]
+    keywords: [华住]
+  # ── 娱乐/学习/通讯/其他 ──
+  - name: 美团
+    type: brand
+    category: 餐饮/零食饮料
+    aliases: [美团, 美团外卖, 美团平台商户]
+    keywords: [美团]
+  - name: 京东
+    type: brand
+    category: 日用百货
+    aliases: [京东, 京东白条, 京东商城]
+    keywords: [京东]
+  - name: 淘宝
+    type: brand
+    category: 日用百货
+    aliases: [淘宝闪购, 淘宝, 天猫]
+    keywords: [淘宝, 天猫]
+  - name: 抖音
+    type: brand
+    category: 娱乐
+    aliases: [抖音生活服务商家, 抖音]
+    keywords: [抖音]
+  - name: WPS
+    type: brand
+    category: 学习
+    aliases: [WPS, WPS Office]
+    keywords: [wps]
+  - name: 湖心岛科技
+    type: brand
+    category: 娱乐/游戏
+    aliases: [湖心岛科技]
+    keywords: [湖心岛]
+  - name: 西南财经大学
+    type: org
+    category: 学习
+    aliases: [西南财经大学]
+    keywords: [西南财经大学, 西财]
+  - name: 腾讯
+    type: org
+    category: 娱乐/游戏
+    aliases: [深圳市腾讯计算机系统有限公司, 腾讯]
+    keywords: [腾讯]
+  - name: 深度求索
+    type: org
+    category: 学习
+    aliases: [杭州深度求索, DeepSeek, 深度求索]
+    keywords: [深度求索, deepseek]

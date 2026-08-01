@@ -1,0 +1,25 @@
+merchants:
+- name: PeetsCoffee
+  type: brand
+  category: 餐饮
+  aliases:
+  - PeetsCoffee
+  keywords: []
+- name: 陶陶居
+  type: brand
+  category: 餐饮
+  aliases:
+  - 陶陶居
+  keywords: []
+- name: 1903四川成都南熏大道工厂店
+  type: brand
+  category: 招待费
+  aliases:
+  - 1903四川成都南熏大道工厂店
+  keywords: []
+- name: 花语之屋鲜花花艺
+  type: brand
+  category: 其他
+  aliases:
+  - 花语之屋鲜花花艺
+  keywords: []

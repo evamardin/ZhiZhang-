@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}随礼管理 - 财务助手{% endblock %}
+
+{% block content %}
+    <div class="card" style="background:linear-gradient(135deg,#fff5f5,#fffaf0); border:1px solid #feb2b2;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div>
+                <div style="font-size:13px;color:#c53030;">人情账本 · 随礼管理</div>
+                <h1 style="margin-top:4px;color:#742a2a;">🎁 随礼记录</h1>
+                <p style="color:#718096;font-size:14px;margin-top:6px;">记下每一份随出去的礼，提前规划未来的礼金，不漏人情、不超预算。</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 汇总卡片 -->
+    <div class="card-grid" style="margin-bottom:20px;">
+        <div class="card">
+            <h3>随礼总户数</h3>
+            <div id="gift-total-persons" style="font-size:24px;font-weight:700;color:#2d3748;">--</div>
+            <small style="color:#718096;">共 <span id="gift-total-count">--</span> 笔随礼</small>
+        </div>
+        <div class="card">
+            <h3>随礼总金额</h3>
+            <div id="gift-total-amount" style="font-size:24px;font-weight:700;color:#c53030;">--</div>
+            <small style="color:#718096;">含交通等费用</small>
+        </div>
+        <div class="card" style="background:#f0fff4;">
+            <h3>已随礼金</h3>
+            <div id="gift-paid-amount" style="font-size:24px;font-weight:700;color:#2f855a;">--</div>
+            <small style="color:#718096;"><span id="gift-paid-count">--</span> 笔已完成</small>
+        </div>
+        <div class="card" style="background:#ebf8ff;">
+            <h3>计划待随</h3>
+            <div id="gift-planned-amount" style="font-size:24px;font-weight:700;color:#2b6cb0;">--</div>
+            <small style="color:#718096;"><span id="gift-planned-count">--</span> 笔未来礼金</small>
+        </div>
+    </div>
+
+    <!-- 新增随礼表单 -->
+    <div class="card">
+        <h2>记一笔随礼</h2>
+        <div class="action-group" style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;">
+            <div class="form-group" style="margin:0;">
+                <label for="gift-person">对象（谁）</label>
+                <input type="text" id="gift-person" placeholder="如：表哥张伟 / 大学同学小李" style="width:160px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="gift-type">事件类型</label>
+                <select id="gift-type" style="width:110px;">
+                    <option value="婚礼">婚礼</option>
+                    <option value="满月酒">满月酒</option>
+                    <option value="百日宴">百日宴</option>
+                    <option value="寿宴">寿宴</option>
+                    <option value="乔迁">乔迁</option>
+                    <option value="升学宴">升学宴</option>
+                    <option value="白事">白事</option>
+                    <option value="其他">其他</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="gift-amount">礼金 (¥)</label>
+                <input type="number" id="gift-amount" placeholder="如 1000" min="0" step="0.01" style="width:110px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="gift-travel">交通费 (¥)</label>
+                <input type="number" id="gift-travel" placeholder="如 200" min="0" step="0.01" style="width:110px;">
+            </div>
+            <div class="form-group" style="margin:0;">
+                <label for="gift-date">事件日期</label>
+                <input type="date" id="gift-date" style="width:140px;">
+            </div>
+            <div class="form-group" style="margin:0;flex:1;min-width:160px;">
+                <label for="gift-note">备注</label>
+                <input type="text" id="gift-note" placeholder="如：微信转账 / 需提前订票" style="width:100%;">
+            </div>
+            <button class="btn btn-success" id="btn-add-gift">➕ 记录</button>
+        </div>
+    </div>
+
+    <div class="chart-row">
+        <!-- 每家明细 -->
+        <div class="card">
+            <h2>每家随礼明细</h2>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr><th>对象</th><th>笔数</th><th>累计金额</th><th>明细</th></tr>
+                    </thead>
+                    <tbody id="gift-person-body">
+                        <tr><td colspan="4" class="empty-state">还没有随礼记录</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 类型统计 -->
+        <div class="card">
+            <h2>事件类型统计（已随）</h2>
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr><th>类型</th><th>笔数</th><th>金额</th></tr>
+                    </thead>
+                    <tbody id="gift-type-body">
+                        <tr><td colspan="3" class="empty-state">暂无已随记录</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 未来计划 -->
+    <div class="card" style="background:#ebf8ff; border:1px solid #bee3f8;">
+        <h2>📅 未来随礼计划</h2>
+        <p style="color:#718096;font-size:13px;margin-bottom:12px;">已确认但还未到日期的礼金，临近时会在仪表盘提醒。</p>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr><th>事件日期</th><th>对象</th><th>类型</th><th>礼金</th><th>交通费</th><th>备注</th><th>操作</th></tr>
+                </thead>
+                <tbody id="gift-planned-body">
+                    <tr><td colspan="7" class="empty-state">暂无未来随礼计划</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 历史记录 -->
+    <div class="card">
+        <h2>📜 随礼历史</h2>
+        <div class="table-wrapper">
+            <table class="table">
+                <thead>
+                    <tr><th>事件日期</th><th>对象</th><th>类型</th><th>礼金</th><th>交通费</th><th>备注</th><th>操作</th></tr>
+                </thead>
+                <tbody id="gift-paid-body">
+                    <tr><td colspan="7" class="empty-state">暂无随礼历史</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let editingGiftId = null;
+
+    /**
+     * 加载汇总数据
+     */
+    async function loadGiftSummary() {
+        try {
+            const res = await fetch('/api/gifts/summary');
+            const data = await res.json();
+            document.getElementById('gift-total-persons').textContent = data.total_persons + ' 家';
+            document.getElementById('gift-total-count').textContent = data.total_count;
+            document.getElementById('gift-total-amount').textContent = `¥${data.total_amount.toFixed(2)}`;
+            document.getElementById('gift-paid-amount').textContent = `¥${data.paid_amount.toFixed(2)}`;
+            document.getElementById('gift-paid-count').textContent = data.paid_count;
+            document.getElementById('gift-planned-amount').textContent = `¥${data.planned_amount.toFixed(2)}`;
+            document.getElementById('gift-planned-count').textContent = data.planned_count;
+
+            // 每家明细
+            const personBody = document.getElementById('gift-person-body');
+            if (!data.persons || data.persons.length === 0) {
+                personBody.innerHTML = '<tr><td colspan="4" class="empty-state">还没有随礼记录</td></tr>';
+            } else {
+                personBody.innerHTML = data.persons.map(p => {
+                    const detail = p.events.map(e =>
+                        `${e.event_type} ¥${(e.amount + e.travel_cost).toFixed(2)}(${e.event_date})`
+                    ).join('<br>');
+                    return `<tr>
+                        <td><strong>${p.person}</strong></td>
+                        <td>${p.count} 笔</td>
+                        <td style="color:#c53030;font-weight:600;">¥${p.total_amount.toFixed(2)}</td>
+                        <td style="font-size:13px;color:#718096;">${detail}</td>
+                    </tr>`;
+                }).join('');
+            }
+
+            // 类型统计
+            const typeBody = document.getElementById('gift-type-body');
+            if (!data.types || data.types.length === 0) {
+                typeBody.innerHTML = '<tr><td colspan="3" class="empty-state">暂无已随记录</td></tr>';
+            } else {
+                typeBody.innerHTML = data.types.map(t => `<tr>
+                    <td>${t.event_type}</td>
+                    <td>${t.count} 笔</td>
+                    <td style="color:#c53030;">¥${t.total_amount.toFixed(2)}</td>
+                </tr>`).join('');
+            }
+        } catch (err) {
+            console.error('加载随礼汇总失败:', err);
+        }
+    }
+
+    /**
+     * 渲染随礼列表
+     */
+    function renderGiftRows(items, tbodyId) {
+        const tbody = document.getElementById(tbodyId);
+        if (!items || items.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${tbodyId === 'gift-planned-body' ? '暂无未来随礼计划' : '暂无随礼历史'}</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = items.map(g => `<tr>
+            <td>${g.event_date}</td>
+            <td><strong>${g.person}</strong></td>
+            <td>${g.event_type}</td>
+            <td style="color:#c53030;font-weight:600;">¥${parseFloat(g.amount).toFixed(2)}</td>
+            <td>${parseFloat(g.travel_cost || 0) > 0 ? '¥' + parseFloat(g.travel_cost).toFixed(2) : '-'}</td>
+            <td style="font-size:13px;color:#718096;">${g.note || '-'}</td>
+            <td>
+                <button class="btn btn-sm" onclick="editGift(${g.id})">编辑</button>
+                <button class="btn btn-sm" style="background:#fed7d7;color:#c53030;" onclick="deleteGift(${g.id})">删除</button>
+            </td>
+        </tr>`).join('');
+    }
+
+    /**
+     * 加载未来计划 + 历史记录
+     */
+    async function loadGiftLists() {
+        try {
+            const [plannedRes, paidRes] = await Promise.all([
+                fetch('/api/gifts?status=planned'),
+                fetch('/api/gifts?status=paid'),
+            ]);
+            const planned = await plannedRes.json();
+            const paid = await paidRes.json();
+            renderGiftRows(planned, 'gift-planned-body');
+            renderGiftRows(paid, 'gift-paid-body');
+        } catch (err) {
+            console.error('加载随礼列表失败:', err);
+        }
+    }
+
+    /**
+     * 刷新全部数据
+     */
+    function refreshGifts() {
+        loadGiftSummary();
+        loadGiftLists();
+    }
+
+    /**
+     * 新增随礼
+     */
+    async function addGift() {
+        const person = document.getElementById('gift-person').value.trim();
+        const eventType = document.getElementById('gift-type').value;
+        const amount = document.getElementById('gift-amount').value;
+        const travel = document.getElementById('gift-travel').value || 0;
+        const eventDate = document.getElementById('gift-date').value;
+        const note = document.getElementById('gift-note').value.trim();
+
+        if (!person) { showAlert('请填写对象', 'error'); return; }
+        if (!eventDate) { showAlert('请选择事件日期', 'error'); return; }
+        if (!amount || parseFloat(amount) <= 0) { showAlert('请填写礼金金额', 'error'); return; }
+
+        try {
+            await jsonRequest('/api/gifts', 'POST', {
+                person, event_type: eventType, amount: parseFloat(amount),
+                travel_cost: parseFloat(travel || 0), event_date: eventDate, note,
+            });
+            showAlert('随礼记录成功', 'success');
+            document.getElementById('gift-person').value = '';
+            document.getElementById('gift-amount').value = '';
+            document.getElementById('gift-travel').value = '';
+            document.getElementById('gift-note').value = '';
+            refreshGifts();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('保存失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 编辑随礼
+     */
+    async function editGift(id) {
+        // 通过历史/计划列表找到该条
+        const all = [...document.querySelectorAll('#gift-paid-body tr, #gift-planned-body tr')];
+        // 简化：直接弹输入框让用户改备注（MVP 阶段编辑金额等）
+        const note = await showPromptModal('编辑备注', '输入新备注（留空取消）');
+        if (note === null) return;
+        try {
+            await jsonRequest(`/api/gifts/${id}`, 'PUT', { note });
+            showAlert('已更新', 'success');
+            refreshGifts();
+        } catch (err) {
+            showAlert('更新失败: ' + err.message, 'error');
+        }
+    }
+
+    /**
+     * 删除随礼
+     */
+    async function deleteGift(id) {
+        const ok = await showConfirmModal('删除随礼记录', '确定删除这条随礼记录吗？');
+        if (!ok) return;
+        try {
+            await jsonRequest(`/api/gifts/${id}`, 'DELETE');
+            showAlert('已删除', 'success');
+            refreshGifts();
+        } catch (err) {
+            showAlert('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    // 页面初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        // 默认日期设为今天
+        const now = new Date();
+        document.getElementById('gift-date').value =
+            `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+        document.getElementById('btn-add-gift').addEventListener('click', addGift);
+        refreshGifts();
+    });
+</script>
+{% endblock %}

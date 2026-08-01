@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}未来流水 - 财务助手{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>未来流水情况表</h2>
+    <p style="color: #718096; font-size: 14px; margin-bottom: 16px;">
+        基于当前余额、固定收支和历史消费预测未来 12 个月流水。
+        余额 = 账户管理总余额 - 债务剩余总额，可在 <a href="/settings" style="color: #2b6cb0;">设置 → 账户管理</a> 中用"一键统计"更新。
+    </p>
+
+    <!-- 摘要卡片 -->
+    <div class="card-grid" style="margin-bottom: 16px;">
+        <div class="card" style="display: flex; flex-direction: column; gap: 4px;">
+            <h3>当前余额</h3>
+            <div id="cf-current-balance" style="font-size: 22px; font-weight: 600;">--</div>
+            <div style="font-size: 12px; color: #a0aec0;">
+                账户 <span id="cf-acct-balance" style="color:#38a169;">¥0</span>
+                债务 <span id="cf-debt-amount" style="color:#e53e3e;">¥0</span>
+            </div>
+        </div>
+        <div class="card">
+            <h3>预计月收入</h3>
+            <div id="cf-monthly-income" class="amount-negative" style="font-size: 22px;">--</div>
+        </div>
+        <div class="card">
+            <h3>预计月支出</h3>
+            <div id="cf-monthly-expense" class="amount-positive" style="font-size: 22px;">--</div>
+        </div>
+        <div class="card">
+            <h3>12个月后余额</h3>
+            <div id="cf-end-balance" style="font-size: 22px; font-weight: 600;">--</div>
+        </div>
+    </div>
+
+    <!-- 安全余额警告 -->
+    <div id="cf-safety-warning" style="display:none; padding: 8px 12px; margin-bottom: 12px; background: #fff5f5; border: 1px solid #fc8181; border-radius: 6px; color: #c53030; font-size: 14px;"></div>
+
+    <!-- 余额走势 -->
+    <div class="card" style="padding: 18px; margin-bottom: 16px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+            <div>
+                <h3 style="margin-bottom:4px; color:#1a365d;">余额走势</h3>
+                <span style="font-size:13px; color:#718096;">未来 12 个月预计月末余额变化</span>
+            </div>
+            <span id="cf-trend-status" style="font-size:13px; color:#718096;"></span>
+        </div>
+        <div style="height:280px;"><canvas id="cashflowChart"></canvas></div>
+    </div>
+
+    <!-- 月度明细卡片 -->
+    <div class="card" style="padding: 18px; margin-bottom: 16px;">
+        <h3 style="margin-bottom:12px; color:#1a365d;">月度概览</h3>
+        <div id="cf-monthly-cards" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px;"></div>
+    </div>
+
+    <!-- 流水表格 -->
+    <div class="table-wrapper" style="overflow-x: auto;">
+        <table class="table" id="cashflow-table" style="font-size: 13px;">
+            <thead>
+                <tr id="cashflow-head-row">
+                    <th style="position: sticky; left: 0; background: #edf2f7; z-index: 1; min-width: 180px;">项目</th>
+                </tr>
+            </thead>
+            <tbody id="cf-body">
+                <tr><td colspan="13" class="empty-state">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let cashflowChartInstance = null;
+
+    function renderCashflowChart(data) {
+        const months = data.months || [];
+        const balances = months.map(ym => data.balance?.values?.[ym] || 0);
+        const safety = data.safety_balance || 0;
+        if (cashflowChartInstance) cashflowChartInstance.destroy();
+        cashflowChartInstance = new Chart(document.getElementById('cashflowChart'), {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [{
+                    label: '预计月末余额', data: balances,
+                    borderColor: '#2b6cb0', backgroundColor: 'rgba(43,108,176,.12)',
+                    fill: true, tension: .3, pointRadius: 4, pointBackgroundColor: balances.map(v => safety > 0 && v < safety ? '#e53e3e' : '#2b6cb0')
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `¥${ctx.parsed.y.toFixed(2)}` } } },
+                scales: { y: { ticks: { callback: value => `¥${Number(value).toLocaleString()}` } } }
+            }
+        });
+    }
+
+    function renderMonthlyCards(data) {
+        const months = data.months || [];
+        const safety = data.safety_balance || 0;
+        document.getElementById('cf-monthly-cards').innerHTML = months.map(ym => {
+            const income = data.total_income?.values?.[ym] || 0;
+            const expense = data.total_expense?.values?.[ym] || 0;
+            const net = data.net?.values?.[ym] || 0;
+            const balance = data.balance?.values?.[ym] || 0;
+            const warning = safety > 0 && balance < safety;
+            return `<div style="border:1px solid ${warning ? '#fc8181' : '#e2e8f0'}; border-radius:10px; padding:14px; background:${warning ? '#fff5f5' : '#fff'};">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;"><strong style="color:#1a365d;">${ym}</strong>${warning ? '<span style="font-size:12px;color:#c53030;">低于安全线</span>' : ''}</div>
+                <div style="font-size:12px;color:#718096;line-height:1.9;">收入 <b style="color:#38a169;float:right;">+¥${income.toFixed(2)}</b><br>支出 <b style="color:#e53e3e;float:right;">-¥${expense.toFixed(2)}</b><br>结余 <b style="color:${net >= 0 ? '#2b6cb0' : '#e53e3e'};float:right;">${net >= 0 ? '+' : ''}¥${net.toFixed(2)}</b></div>
+                <div style="margin-top:8px;padding-top:8px;border-top:1px solid #edf2f7;font-size:13px;color:#4a5568;">月末余额 <strong style="float:right;color:${warning ? '#e53e3e' : '#2b6cb0'};">¥${balance.toFixed(2)}</strong></div>
+            </div>`;
+        }).join('');
+    }
+
+    async function loadCashflowTable() {
+        try {
+            const res = await fetch('/api/cashflow-table');
+            const data = await res.json();
+
+            if (data.error) {
+                document.getElementById('cf-body').innerHTML = `<tr><td colspan="13" class="empty-state">加载失败: ${data.error}</td></tr>`;
+                return;
+            }
+
+            const months = data.months || [];
+            if (months.length === 0) {
+                document.getElementById('cf-monthly-cards').innerHTML = '<div class="empty-state">暂无预测数据</div>';
+                return;
+            }
+
+            renderCashflowChart(data);
+            renderMonthlyCards(data);
+            const lowest = Math.min(...months.map(ym => data.balance?.values?.[ym] || 0));
+            document.getElementById('cf-trend-status').textContent = `最低余额 ¥${lowest.toFixed(2)}`;
+
+            // 更新摘要
+            document.getElementById('cf-current-balance').textContent = `¥${(data.current_balance || 0).toFixed(2)}`;
+            document.getElementById('cf-acct-balance').textContent = `¥${(data.accounts_balance || 0).toFixed(2)}`;
+            document.getElementById('cf-debt-amount').textContent = `¥${(data.total_debt || 0).toFixed(2)}`;
+            const lastBalance = data.balance?.values?.[months[months.length - 1]] || 0;
+            document.getElementById('cf-end-balance').textContent = `¥${lastBalance.toFixed(2)}`;
+
+            // 计算平均月收支
+            let totalInc = 0, totalExp = 0;
+            months.forEach(ym => {
+                totalInc += data.total_income?.values?.[ym] || 0;
+                totalExp += data.total_expense?.values?.[ym] || 0;
+            });
+            const avgInc = totalInc / months.length;
+            const avgExp = totalExp / months.length;
+            document.getElementById('cf-monthly-income').textContent = `+${avgInc.toFixed(2)}`;
+            document.getElementById('cf-monthly-expense').textContent = `-${avgExp.toFixed(2)}`;
+
+            // 安全余额警告
+            const safety = data.safety_balance || 0;
+            const warningEl = document.getElementById('cf-safety-warning');
+            let lowestBalance = Infinity;
+            months.forEach(ym => {
+                const bal = data.balance?.values?.[ym] || 0;
+                if (bal < lowestBalance) lowestBalance = bal;
+            });
+            if (safety > 0 && lowestBalance < safety) {
+                warningEl.style.display = 'block';
+                warningEl.innerHTML = `⚠ 预测期内最低余额 ¥${lowestBalance.toFixed(2)} 低于安全线 ¥${safety.toFixed(2)}，<strong>${findWarningMonth(data)}</strong>`;
+            } else {
+                warningEl.style.display = 'none';
+            }
+
+            // 渲染表头（月份）
+            const headRow = document.getElementById('cashflow-head-row');
+            headRow.innerHTML = '<th style="position: sticky; left: 0; background: #edf2f7; z-index: 1; min-width: 180px;">项目</th>' +
+                months.map(ym => `<th style="min-width: 90px; text-align: right; white-space: nowrap;">${ym}</th>`).join('');
+
+            // 渲染表体
+            const tbody = document.getElementById('cf-body');
+            let html = '';
+
+            // ---- 收入区域 ----
+            html += `<tr style="background: #f0fff4;"><td style="font-weight: 700; position: sticky; left: 0; background: #f0fff4; z-index: 1;">收入</td>${months.map(() => '<td></td>').join('')}</tr>`;
+            (data.income_rows || []).forEach(row => {
+                html += `<tr>
+                    <td style="position: sticky; left: 0; background: white; z-index: 1; padding-left: 20px;">
+                        ${row.name} <span style="color: #718096; font-size: 11px;">(${row.category})</span>
+                    </td>
+                    ${months.map(ym => `<td style="text-align: right; color: #38a169;">¥${(row.values[ym] || 0).toFixed(2)}</td>`).join('')}
+                </tr>`;
+            });
+            // 收入合计
+            html += `<tr style="font-weight: 700; border-top: 2px solid #38a169;">
+                <td style="position: sticky; left: 0; background: #f0fff4; z-index: 1;">收入合计</td>
+                ${months.map(ym => `<td style="text-align: right; color: #38a169; background: #f0fff4;">¥${(data.total_income?.values?.[ym] || 0).toFixed(2)}</td>`).join('')}
+            </tr>`;
+
+            // ---- 支出区域 ----
+            html += `<tr style="background: #fff5f5;"><td style="font-weight: 700; position: sticky; left: 0; background: #fff5f5; z-index: 1;">支出</td>${months.map(() => '<td></td>').join('')}</tr>`;
+            (data.expense_rows || []).forEach(row => {
+                html += `<tr>
+                    <td style="position: sticky; left: 0; background: white; z-index: 1; padding-left: 20px;">
+                        ${row.name} ${row.is_budget ? '<span style="color: #718096; font-size: 11px;">(预算)</span>' : ''}
+                    </td>
+                    ${months.map(ym => `<td style="text-align: right; color: #e53e3e;">¥${(row.values[ym] || 0).toFixed(2)}</td>`).join('')}
+                </tr>`;
+            });
+            // 支出合计
+            html += `<tr style="font-weight: 700; border-top: 2px solid #e53e3e;">
+                <td style="position: sticky; left: 0; background: #fff5f5; z-index: 1;">支出合计</td>
+                ${months.map(ym => `<td style="text-align: right; color: #e53e3e; background: #fff5f5;">¥${(data.total_expense?.values?.[ym] || 0).toFixed(2)}</td>`).join('')}
+            </tr>`;
+
+            // ---- 结余 ----
+            html += `<tr>
+                <td style="font-weight: 700; position: sticky; left: 0; background: white; z-index: 1;">当月结余</td>
+                ${months.map(ym => {
+                    const net = data.net?.values?.[ym] || 0;
+                    const color = net >= 0 ? '#38a169' : '#e53e3e';
+                    return `<td style="text-align: right; color: ${color}; font-weight: 600;">${net >= 0 ? '+' : ''}¥${net.toFixed(2)}</td>`;
+                }).join('')}
+            </tr>`;
+
+            // ---- 余额 ----
+            html += `<tr style="font-weight: 700; border-top: 2px solid #2b6cb0; background: #ebf8ff;">
+                <td style="position: sticky; left: 0; background: #ebf8ff; z-index: 1; color: #2b6cb0;">月末余额</td>
+                ${months.map(ym => {
+                    const bal = data.balance?.values?.[ym] || 0;
+                    const warn = safety > 0 && bal < safety;
+                    return `<td style="text-align: right; font-weight: 700; ${warn ? 'color: #e53e3e;' : 'color: #2b6cb0;'} background: #ebf8ff;">
+                        ¥${bal.toFixed(2)}
+                    </td>`;
+                }).join('')}
+            </tr>`;
+
+            tbody.innerHTML = html;
+        } catch (err) {
+            document.getElementById('cf-body').innerHTML = `<tr><td colspan="13" class="empty-state">加载失败: ${err.message}</td></tr>`;
+            console.error('加载流水表失败:', err);
+        }
+    }
+
+    function findWarningMonth(data) {
+        const safety = data.safety_balance || 0;
+        const months = data.months || [];
+        for (const ym of months) {
+            const bal = data.balance?.values?.[ym] || 0;
+            if (bal < safety) return `最早发生在 ${ym}`;
+        }
+        return '';
+    }
+
+    document.addEventListener('DOMContentLoaded', loadCashflowTable);
+</script>
+{% endblock %}

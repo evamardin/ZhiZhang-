@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - 财务助手{% endblock %}
+
+{% block content %}
+    <div class="card" style="background:linear-gradient(135deg,#ebf8ff,#f0fff4); border:1px solid #bee3f8;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <div><div style="font-size:13px;color:#718096;">个人财务总览</div><h1 style="margin-top:4px;color:#1a365d;">今天也掌握好每一笔钱</h1></div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <a class="btn" href="/transactions">查看流水</a><a class="btn btn-success" href="/pending">处理待分类</a><a class="btn" href="/monthly-analysis" style="background:#805ad5;">月度分析</a>
+            </div>
+        </div>
+    </div>
+    <!-- 提醒区域 -->
+    <div id="reminders-container" style="display: none;">
+        <div class="card" id="reminders-card">
+            <h2>待处理提醒</h2>
+            <div id="reminders-list"></div>
+        </div>
+    </div>
+
+    <!-- 月份选择器（已由全局账期条取代，保留占位提示） -->
+    <div class="card" style="display: none;">
+        <div class="form-row">
+            <div class="form-group">
+                <label for="month-picker">选择月份</label>
+                <input type="month" id="month-picker">
+            </div>
+            <button class="btn" id="btn-view">查看</button>
+        </div>
+    </div>
+
+    <!-- 汇总卡片 -->
+    <div class="card-grid" id="summary-cards">
+        <div class="card">
+            <h3>总收入</h3>
+            <div class="amount-negative" id="total-income" style="font-size: 24px;">--</div>
+        </div>
+        <div class="card">
+            <h3>总支出</h3>
+            <div class="amount-positive" id="total-expense" style="font-size: 24px;">--</div>
+        </div>
+        <div class="card">
+            <h3>净结余</h3>
+            <div id="total-balance" style="font-size: 24px;">--</div>
+        </div>
+        <div class="card">
+            <h3>日均支出</h3>
+            <div id="daily-average" style="font-size: 24px; color: #718096;">--</div>
+        </div>
+    </div>
+
+    <!-- 图表区域 -->
+    <div class="chart-row">
+        <div class="card">
+            <h2>分类支出分布</h2>
+            <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+            </div>
+        </div>
+        <div class="card">
+            <h2>消费趋势</h2>
+            <div class="chart-container">
+                <canvas id="trendChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 商户消费排行 -->
+    <div class="card">
+        <h2>商户消费排行</h2>
+        <div class="table-wrapper">
+            <table class="table" id="merchant-table">
+                <thead>
+                    <tr>
+                        <th>排名</th>
+                        <th>商户</th>
+                        <th>交易次数</th>
+                        <th>总金额</th>
+                    </tr>
+                </thead>
+                <tbody id="merchant-body">
+                    <tr><td colspan="4" class="empty-state">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- 现金流预测 -->
+    <div class="card">
+        <h2>现金流预测</h2>
+        <div id="safety-warning" style="display:none; padding: 8px 12px; margin-bottom: 12px; background: #fff5f5; border: 1px solid #fc8181; border-radius: 6px; color: #c53030; font-size: 14px;">
+            ⚠ 预计余额将低于安全线，请留意！
+        </div>
+        <div class="card-grid" id="cashflow-cards">
+            <div class="card">
+                <h3>当前余额</h3>
+                <div id="cf-balance" style="font-size: 20px; font-weight: 600;">--</div>
+            </div>
+            <div class="card">
+                <h3>预计收入</h3>
+                <div id="cf-income" class="amount-negative" style="font-size: 20px;">--</div>
+            </div>
+            <div class="card">
+                <h3>预计支出</h3>
+                <div id="cf-expense" class="amount-positive" style="font-size: 20px;">--</div>
+            </div>
+            <div class="card">
+                <h3>期末余额</h3>
+                <div id="cf-ending" style="font-size: 20px; font-weight: 600;">--</div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 图表实例缓存
+    let categoryChartInstance = null;
+    let trendChartInstance = null;
+
+    /**
+     * 加载汇总数据
+     */
+    async function loadSummary(yearMonth) {
+        try {
+            const res = await fetch(withGlobalRange(yearMonth ? `/api/summary?year_month=${yearMonth}` : '/api/summary'));
+            const data = await res.json();
+            document.getElementById('total-income').textContent = `+${(data.total_income || 0).toFixed(2)}`;
+            document.getElementById('total-expense').textContent = `-${(data.total_expense || 0).toFixed(2)}`;
+            const balance = (data.total_income || 0) - (data.total_expense || 0);
+            const balanceEl = document.getElementById('total-balance');
+            balanceEl.textContent = balance >= 0 ? `+${balance.toFixed(2)}` : `${balance.toFixed(2)}`;
+            balanceEl.className = balance >= 0 ? 'amount-negative' : 'amount-positive';
+            balanceEl.style.fontSize = '24px';
+            document.getElementById('daily-average').textContent = `¥${(data.avg_daily_expense || data.daily_average || 0).toFixed(2)}`;
+        } catch (err) {
+            console.error('加载汇总数据失败:', err);
+        }
+    }
+
+    /**
+     * 加载分类支出饼图
+     */
+    async function loadCategoryChart(yearMonth) {
+        try {
+            const res = await fetch(withGlobalRange(yearMonth ? `/api/categories?year_month=${yearMonth}` : '/api/categories'));
+            const data = await res.json();
+            const labels = data.map(item => item.name || item.category);
+            const values = data.map(item => parseFloat(item.amount || item.total) || 0);
+
+            // 颜色数组
+            const colors = [
+                '#2b6cb0', '#e53e3e', '#38a169', '#d69e2e', '#805ad5',
+                '#319795', '#dd6b20', '#d53f8c', '#3182ce', '#2f855a',
+                '#b83280', '#822727', '#276749', '#9b2c2c', '#553c9a'
+            ];
+
+            if (categoryChartInstance) {
+                categoryChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            categoryChartInstance = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { font: { size: 13 } }
+                        }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('加载分类数据失败:', err);
+        }
+    }
+
+    /**
+     * 加载消费趋势折线图
+     */
+    async function loadTrendChart() {
+        try {
+            const res = await fetch('/api/trend?months=6');
+            const data = await res.json();
+            const labels = data.map(item => item.month || item.label);
+            const income = data.map(item => parseFloat(item.income || item.total_income) || 0);
+            const expense = data.map(item => parseFloat(item.expense || item.total_expense) || 0);
+
+            if (trendChartInstance) {
+                trendChartInstance.destroy();
+            }
+
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: '收入',
+                            data: income,
+                            borderColor: '#38a169',
+                            backgroundColor: 'rgba(56, 161, 105, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: '支出',
+                            data: expense,
+                            borderColor: '#e53e3e',
+                            backgroundColor: 'rgba(229, 62, 62, 0.1)',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: { font: { size: 13 } }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function (value) {
+                                    return '¥' + value.toFixed(0);
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } catch (err) {
+            console.error('加载趋势数据失败:', err);
+        }
+    }
+
+    /**
+     * 加载商户消费排行
+     */
+    async function loadMerchants(yearMonth) {
+        try {
+            const res = await fetch(withGlobalRange(yearMonth ? `/api/merchants?year_month=${yearMonth}` : '/api/merchants'));
+            const data = await res.json();
+            const tbody = document.getElementById('merchant-body');
+            if (!data || data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无数据</td></tr>';
+                return;
+            }
+            tbody.innerHTML = data.map((item, index) => {
+                const name = item.name || item.merchant;
+                const count = item.count || item.times || 0;
+                const total = parseFloat(item.total_amount ?? item.total ?? item.amount ?? 0);
+                return `<tr>
+                    <td>${index + 1}</td>
+                    <td>${name}</td>
+                    <td>${count}</td>
+                    <td><span class="amount-positive">¥${total.toFixed(2)}</span></td>
+                </tr>`;
+            }).join('');
+        } catch (err) {
+            console.error('加载商户数据失败:', err);
+        }
+    }
+
+    /**
+     * 加载现金流预测
+     */
+    async function loadCashflow() {
+        try {
+            const [cfRes, settingsRes] = await Promise.all([
+                fetch('/api/cashflow'),
+                fetch('/api/settings')
+            ]);
+            const data = await cfRes.json();
+            const settings = await settingsRes.json();
+            const safetyBalance = parseFloat(settings.safety_balance) || 0;
+            const currentBalance = Number(data.current_balance ?? data.balance ?? 0);
+            const income = Number(data.avg_monthly_income ?? data.expected_income ?? 0);
+            const expense = Number(data.avg_monthly_expense ?? data.expected_expense ?? 0);
+            const ending = data.projections?.length
+                ? Number(data.projections[0].end_balance)
+                : currentBalance + income - expense;
+
+            document.getElementById('cf-balance').textContent = `¥${currentBalance.toFixed(2)}`;
+            document.getElementById('cf-income').textContent = `+${income.toFixed(2)}`;
+            document.getElementById('cf-expense').textContent = `-${expense.toFixed(2)}`;
+            const endingEl = document.getElementById('cf-ending');
+            endingEl.textContent = `¥${ending.toFixed(2)}`;
+            endingEl.className = ending >= 0 ? '' : 'amount-positive';
+
+            // 安全余额警告
+            const warningEl = document.getElementById('safety-warning');
+            if (safetyBalance > 0 && ending < safetyBalance) {
+                warningEl.style.display = 'block';
+                warningEl.textContent = `⚠ 预计期末余额 ¥${ending.toFixed(2)} 低于安全线 ¥${safetyBalance.toFixed(2)}，请留意！`;
+            } else if (safetyBalance > 0 && currentBalance < safetyBalance) {
+                warningEl.style.display = 'block';
+                warningEl.textContent = `⚠ 当前余额 ¥${currentBalance.toFixed(2)} 低于安全线 ¥${safetyBalance.toFixed(2)}，请留意！`;
+            } else {
+                warningEl.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('加载现金流数据失败:', err);
+        }
+    }
+
+    /**
+     * 刷新所有仪表盘数据（使用全局账期）
+     */
+    function refreshDashboard() {
+        loadSummary();
+        loadCategoryChart();
+        loadMerchants();
+    }
+
+    /**
+     * 加载提醒
+     */
+    async function loadReminders() {
+        try {
+            const res = await fetch('/api/reminders');
+            const data = await res.json();
+            const items = Array.isArray(data) ? data : [];
+            const container = document.getElementById('reminders-container');
+            const list = document.getElementById('reminders-list');
+            if (items.length === 0) {
+                container.style.display = 'none';
+                return;
+            }
+            container.style.display = 'block';
+            list.innerHTML = items.map(r => {
+                let color = '#3182ce';
+                let link = '';
+                if (r.type === 'pending_category') { color = '#dd6b20'; link = '<a href="/pending" style="margin-left:8px;">去处理</a>'; }
+                if (r.type === 'pending_income') { color = '#d69e2e'; link = '<a href="/settings" style="margin-left:8px;">去确认</a>'; }
+                if (r.type === 'low_balance') { color = '#e53e3e'; }
+                if (r.type === 'gift_upcoming') { color = '#b83280'; link = '<a href="/gifts" style="margin-left:8px;">查看</a>'; }
+                return `<div style="padding:8px 12px;border-left:4px solid ${color};margin-bottom:8px;background:#f7fafc;border-radius:4px;font-size:14px;">
+                    ${r.message}${link}
+                </div>`;
+            }).join('');
+        } catch (err) {
+            console.error('加载提醒失败:', err);
+        }
+    }
+
+    // 页面初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        loadReminders();
+
+        // 加载全部数据（趋势图/现金流保持全量，不受账期限制）
+        refreshDashboard();
+        loadTrendChart();
+        loadCashflow();
+
+        // 全局账期变化时自动刷新
+        window.addEventListener('global-range-changed', function () {
+            refreshDashboard();
+        });
+    });
+</script>
+{% endblock %}

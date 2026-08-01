@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}AI 问答 - 财务助手{% endblock %}
+
+{% block content %}
+    <div class="card" style="display: flex; flex-direction: column; height: calc(100vh - 120px);">
+        <h2>AI 财务助手</h2>
+        <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">
+            向 AI 询问你的财务状况，如 "我这个月花了多少钱？" "餐饮支出最多的是哪家？" "未来余额够不够？"
+        </p>
+
+        <!-- AI 状态提示 -->
+        <div id="ai-status" style="margin-bottom: 12px; padding: 8px 12px; border-radius: 6px; font-size: 13px; display: none;"></div>
+
+        <!-- 消息区域 -->
+        <div id="chat-messages" style="flex: 1; overflow-y: auto; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 12px; background: #fafafa;">
+            <div class="chat-message bot">
+                <div class="msg-avatar">🤖</div>
+                <div class="msg-content">你好！我是你的财务助手，可以查询和分析你的收支数据。有什么想了解的？</div>
+            </div>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="form-row" style="margin: 0;">
+            <div class="form-group" style="flex: 1; margin: 0;">
+                <input type="text" id="chat-input" placeholder="输入你的问题..." style="width: 100%; padding: 10px 14px; font-size: 14px;">
+            </div>
+            <button class="btn btn-success" id="btn-send" style="margin-left: 8px;">发送</button>
+            <button class="btn btn-sm" id="btn-reset" style="margin-left: 4px;">重置</button>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+    .chat-message {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 16px;
+        animation: fadeIn 0.3s ease;
+    }
+    .chat-message.user {
+        flex-direction: row-reverse;
+    }
+    .msg-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+    }
+    .chat-message.bot .msg-avatar {
+        background: #ebf4ff;
+    }
+    .chat-message.user .msg-avatar {
+        background: #c6f6d5;
+    }
+    .msg-content {
+        max-width: 75%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    .chat-message.bot .msg-content {
+        background: white;
+        border: 1px solid #e2e8f0;
+        border-top-left-radius: 4px;
+        color: #2d3748;
+    }
+    .chat-message.user .msg-content {
+        background: #2b6cb0;
+        color: white;
+        border-top-right-radius: 4px;
+    }
+    .msg-content.loading {
+        color: #a0aec0;
+        font-style: italic;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+<script>
+    let isLoading = false;
+
+    function addMessage(text, type) {
+        const container = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = `chat-message ${type}`;
+        const avatar = type === 'bot' ? '🤖' : '👤';
+        div.innerHTML = `
+            <div class="msg-avatar">${avatar}</div>
+            <div class="msg-content">${text}</div>
+        `;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+        return div;
+    }
+
+    function showLoading() {
+        const container = document.getElementById('chat-messages');
+        const div = document.createElement('div');
+        div.className = 'chat-message bot';
+        div.id = 'loading-msg';
+        div.innerHTML = `
+            <div class="msg-avatar">🤖</div>
+            <div class="msg-content loading">思考中...</div>
+        `;
+        container.appendChild(div);
+        container.scrollTop = container.scrollHeight;
+    }
+
+    function removeLoading() {
+        const el = document.getElementById('loading-msg');
+        if (el) el.remove();
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text || isLoading) return;
+
+        input.value = '';
+        addMessage(text, 'user');
+        isLoading = true;
+        showLoading();
+
+        try {
+            const res = await jsonRequest('/api/chat', 'POST', { message: text });
+            removeLoading();
+            if (res.reply) {
+                addMessage(res.reply, 'bot');
+            } else if (res.error) {
+                addMessage('❌ ' + res.error, 'bot');
+            }
+        } catch (err) {
+            removeLoading();
+            addMessage('❌ 请求失败: ' + err.message, 'bot');
+        }
+        isLoading = false;
+    }
+
+    document.getElementById('btn-send').addEventListener('click', sendMessage);
+    document.getElementById('chat-input').addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    document.getElementById('btn-reset').addEventListener('click', async function() {
+        try {
+            await jsonRequest('/api/chat/reset', 'POST');
+            document.getElementById('chat-messages').innerHTML = `
+                <div class="chat-message bot">
+                    <div class="msg-avatar">🤖</div>
+                    <div class="msg-content">你好！我是你的财务助手，可以查询和分析你的收支数据。有什么想了解的？</div>
+                </div>
+            `;
+            showAlert('对话已重置', 'success');
+        } catch (err) {
+            showAlert('重置失败: ' + err.message, 'error');
+        }
+    });
+
+    // 检查 AI 状态
+    async function checkAIStatus() {
+        try {
+            const res = await fetch('/api/chat/status');
+            const data = await res.json();
+            const statusEl = document.getElementById('ai-status');
+            if (!data.available) {
+                statusEl.style.display = 'block';
+                if (!data.has_api_key) {
+                    statusEl.innerHTML = '⚠ 未配置 API Key，请在 config.json 或 .env 中设置 DEEPSEEK_API_KEY';
+                    statusEl.style.background = '#fff5f5';
+                    statusEl.style.border = '1px solid #fc8181';
+                    statusEl.style.color = '#c53030';
+                } else {
+                    statusEl.innerHTML = '⚠ AI 服务暂不可用，请检查 API 配置';
+                    statusEl.style.background = '#fffff0';
+                    statusEl.style.border = '1px solid #ecc94b';
+                    statusEl.style.color = '#975a16';
+                }
+            } else {
+                statusEl.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('检查 AI 状态失败:', err);
+        }
+    }
+
+    // 加载历史对话
+    async function loadHistory() {
+        try {
+            const res = await fetch('/api/chat/history');
+            const data = await res.json();
+            if (!data.history || data.history.length === 0) return;
+
+            const container = document.getElementById('chat-messages');
+            // 清除默认的机器人欢迎语
+            container.innerHTML = '';
+            for (const msg of data.history) {
+                const type = msg.role === 'user' ? 'user' : 'bot';
+                const avatar = type === 'bot' ? '🤖' : '👤';
+                const div = document.createElement('div');
+                div.className = `chat-message ${type}`;
+                div.innerHTML = `
+                    <div class="msg-avatar">${avatar}</div>
+                    <div class="msg-content">${msg.content}</div>
+                `;
+                container.appendChild(div);
+            }
+            container.scrollTop = container.scrollHeight;
+        } catch (err) {
+            console.error('加载对话历史失败:', err);
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        checkAIStatus();
+        loadHistory();
+    });
+</script>
+{% endblock %}

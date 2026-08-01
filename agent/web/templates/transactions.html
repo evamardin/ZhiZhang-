@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+
+{% block title %}交易列表 - 财务助手{% endblock %}
+
+{% block content %}
+    <div class="card">
+        <h2>交易列表</h2>
+
+        <!-- 操作栏 -->
+        <div class="action-group" style="display: flex; gap: 12px; flex-wrap: wrap; align-items: end; margin-bottom: 16px;">
+            <div class="form-group">
+                <label for="filter-month">月份</label>
+                <input type="month" id="filter-month">
+            </div>
+            <div class="form-group">
+                <label for="filter-category">分类</label>
+                <select id="filter-category">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filter-direction">方向</label>
+                <select id="filter-direction">
+                    <option value="">全部</option>
+                    <option value="expense">支出</option>
+                    <option value="income">收入</option>
+                    <option value="neutral">中性</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filter-merchant">商户搜索</label>
+                <input type="text" id="filter-merchant" placeholder="输入商户名称">
+            </div>
+            <button class="btn" id="btn-filter">筛选</button>
+            <button class="btn" id="btn-show-import" style="margin-left: auto;">导入</button>
+            <button class="btn" id="btn-voice-input">语音输入</button>
+            <a href="/api/export" class="btn" target="_blank" id="btn-export">导出 JSON</a>
+            <a href="/api/export/csv" class="btn" target="_blank" id="btn-export-csv">导出 CSV</a>
+        </div>
+
+        <!-- 导入对话框（隐藏） -->
+        <div id="import-dialog" class="card" style="display: none; margin-bottom: 16px; border: 2px dashed #4299e1;">
+            <h3>导入交易</h3>
+            <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">粘贴 JSON 格式的交易数据，或逐条添加。</p>
+            <div class="form-group">
+                <label for="import-json">JSON 数据</label>
+                <textarea id="import-json" rows="5" style="width: 100%; font-family: monospace; font-size: 13px;"
+                    placeholder='[
+    {"datetime": "2026-07-01 10:00:00", "amount": 50.0, "direction": "expense", "merchant": "星巴克", "description": "拿铁", "source": "wechat"},
+    {"datetime": "2026-07-02 09:00:00", "amount": 8000.0, "direction": "income", "merchant": "公司", "description": "工资", "source": "bank"}
+]'></textarea>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button class="btn btn-success" id="btn-import-json">导入</button>
+                <button class="btn" id="btn-hide-import">取消</button>
+            </div>
+            <div id="import-result" style="margin-top: 8px;"></div>
+        </div>
+
+        <!-- 语音输入对话框（隐藏） -->
+        <div id="voice-dialog" class="card" style="display: none; margin-bottom: 16px; border: 2px dashed #805ad5;">
+            <h3>语音输入交易</h3>
+            <p style="color: #718096; font-size: 14px; margin-bottom: 12px;">点击下方按钮开始录音，说出交易信息。例如："今天中午美团花了25元" 或 "7月10号工资到账8000元"。</p>
+            <div style="text-align: center; padding: 20px;">
+                <button class="btn" id="btn-start-recording" style="font-size: 18px; padding: 12px 24px;">🎤 开始录音</button>
+                <div id="voice-status" style="margin-top: 12px; color: #718096; font-size: 14px;">点击按钮开始语音输入</div>
+                <div id="voice-result" style="margin-top: 12px; display: none;">
+                    <div style="background: #f7fafc; padding: 12px; border-radius: 6px; text-align: left; margin-bottom: 12px;">
+                        <strong>识别结果：</strong>
+                        <span id="voice-text"></span>
+                    </div>
+                    <div class="form-row" style="justify-content: center;">
+                        <button class="btn btn-success" id="btn-confirm-voice" disabled>确认添加</button>
+                        <button class="btn" id="btn-cancel-voice">取消</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 交易表格 -->
+        <div class="table-wrapper">
+            <table class="table" id="transaction-table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>商户</th>
+                        <th>描述</th>
+                        <th>金额</th>
+                        <th>方向</th>
+                        <th>分类</th>
+                        <th>账户</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="transaction-body">
+                    <tr><td colspan="8" class="empty-state">暂无数据</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination" id="pagination">
+            <button class="btn btn-sm" id="btn-prev" disabled>上一页</button>
+            <span class="page-info" id="page-info">第 1 页，共 1 页</span>
+            <button class="btn btn-sm" id="btn-next" disabled>下一页</button>
+        </div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentPage = 1;
+    const perPage = 20;
+
+    async function loadCategoryOptions() {
+        const categories = [...(window.categoryOptions || []), '待分类'];
+        const select = document.getElementById('filter-category');
+        categories.forEach(name => {
+            if (Array.from(select.options).some(o => o.value === name)) return;
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            select.appendChild(opt);
+        });
+    }
+
+    async function loadTransactions() {
+        const month = document.getElementById('filter-month').value;
+        const category = document.getElementById('filter-category').value;
+        const direction = document.getElementById('filter-direction').value;
+        const merchant = document.getElementById('filter-merchant').value;
+
+        const params = new URLSearchParams({ page: currentPage, per_page: perPage });
+        if (month) {
+            params.append('start_date', month + '-01');
+            const [y, m] = month.split('-');
+            const lastDay = new Date(Number(y), Number(m), 0).getDate();
+            params.append('end_date', `${month}-${String(lastDay).padStart(2, '0')}`);
+        } else {
+            // 未选月份时跟随全局账期
+            const range = getGlobalDateRange();
+            if (range) {
+                params.append('start_date', range.start);
+                params.append('end_date', range.end);
+            }
+        }
+        if (category) params.append('category', category);
+        if (direction) params.append('direction', direction);
+        if (merchant) params.append('merchant', merchant);
+
+        try {
+            const res = await fetch(`/api/transactions?${params.toString()}`);
+            const data = await res.json();
+            renderTransactions(data);
+        } catch (err) {
+            console.error('加载交易数据失败:', err);
+        }
+    }
+
+    function renderTransactions(data) {
+        const tbody = document.getElementById('transaction-body');
+        const total = data.total || 0;
+        const totalPages = Math.max(1, Math.ceil(total / perPage));
+
+        document.getElementById('page-info').textContent = `第 ${currentPage} 页，共 ${totalPages} 页（共 ${total} 条）`;
+        document.getElementById('btn-prev').disabled = currentPage <= 1;
+        document.getElementById('btn-next').disabled = currentPage >= totalPages;
+
+        const items = data.items || [];
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="8" class="empty-state">暂无数据</td></tr>';
+            return;
+        }
+
+        const categories = [...(window.categoryOptions || []), '__new__'];
+        const escapeHtml = value => String(value).replace(/[&<>"']/g, char =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        const catOptions = categories.map(c => c === '__new__'
+            ? '<option value="__new__">＋新建分类…</option>'
+            : `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+
+        tbody.innerHTML = items.map(tx => {
+            const id = tx.id;
+            const time = formatDate(tx.datetime);
+            const merchant = tx.merchant || '-';
+            const desc = tx.description || '';
+            const amount = parseFloat(tx.amount) || 0;
+            const direction = tx.direction || '支出';
+            const category = tx.category || '待分类';
+            const account = tx.account || tx.source || '-';
+            const isPending = category === '待分类';
+
+            return `<tr data-id="${id}">
+                <td><span class="editable" data-field="datetime" data-id="${id}">${time}</span></td>
+                <td><span class="editable" data-field="merchant" data-id="${id}">${escapeHtml(merchant)}</span></td>
+                <td><span class="editable" data-field="description" data-id="${id}">${escapeHtml(desc)}</span></td>
+                <td><span class="editable" data-field="amount" data-id="${id}">${amount.toFixed(2)}</span></td>
+                <td>${direction}</td>
+                <td class="category-cell" data-id="${id}" data-category="${category}">
+                    ${isPending ? `<select class="cat-select" data-id="${id}">
+                        <option value="">请选择</option>
+                        ${catOptions}
+                    </select>` : escapeHtml(category)}
+                </td>
+                <td><span class="editable" data-field="account" data-id="${id}">${escapeHtml(account)}</span></td>
+                <td>
+                    ${isPending ? `<button class="btn btn-success btn-sm" onclick="confirmCategory('${id}')">确认</button>` : ''}
+                    <button class="btn btn-sm" onclick="editCategory('${id}')">分类</button>
+                    <button class="btn btn-sm" style="background:#e6fffa;color:#234e52;" title="把该商户所有交易设为同一分类" onclick="batchClassifyMerchant('${escapeHtml(merchant)}')">同商户归类</button>
+                    ${!isPending ? `<button class="btn btn-warning btn-sm" onclick="resetCategory('${id}')">撤销</button>` : ''}
+                    <button class="btn btn-danger btn-sm" onclick="deleteTransaction('${id}')">删除</button>
+                </td>
+            </tr>`;
+        }).join('');
+
+        // 行内编辑
+        document.querySelectorAll('.editable').forEach(el => {
+            el.title = '点击编辑';
+            el.style.cursor = 'pointer';
+            el.addEventListener('click', function () {
+                if (this.querySelector('input')) return; // 已在编辑中
+                const val = this.textContent.trim();
+                const field = this.dataset.field;
+                const id = this.dataset.id;
+                const input = document.createElement('input');
+                input.type = field === 'amount' ? 'number' : 'text';
+                input.value = val;
+                input.step = field === 'amount' ? '0.01' : undefined;
+                input.style.width = field === 'amount' ? '100px' : '150px';
+                const save = () => {
+                    const newVal = input.value.trim();
+                    if (newVal && newVal !== val) {
+                        saveField(id, field, newVal);
+                    }
+                    this.textContent = newVal || val;
+                };
+                input.addEventListener('blur', save);
+                input.addEventListener('keydown', e => { if (e.key === 'Enter') { input.blur(); } });
+                this.textContent = '';
+                this.appendChild(input);
+                input.focus();
+            });
+        });
+    }
+
+    async function saveField(id, field, value) {
+        try {
+            await jsonRequest(`/api/transactions/${id}`, 'PUT', { [field]: value });
+            showAlert('更新成功', 'success');
+        } catch (err) {
+            showAlert('更新失败: ' + err.message, 'error');
+        }
+    }
+
+    function editCategory(id) {
+        const cell = document.querySelector(`.category-cell[data-id="${CSS.escape(id)}"]`);
+        if (!cell) return;
+        const current = cell.dataset.category || '待分类';
+        if (cell.querySelector('select')) return;
+
+        const categories = [...(window.categoryOptions || []), '__new__'];
+        const escapeHtml = value => String(value).replace(/[&<>"']/g, char =>
+            ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+        const options = categories.map(c => c === '__new__'
+            ? '<option value="__new__">＋新建分类…</option>'
+            : `<option value="${escapeHtml(c)}" ${c === current ? 'selected' : ''}>${escapeHtml(c)}</option>`
+        ).join('');
+        cell.innerHTML = `<select class="cat-select" data-id="${id}">
+            <option value="">请选择</option>
+            ${options}
+        </select> <button class="btn btn-success btn-sm" onclick="confirmCategory('${id}')">确认</button>
+        <button class="btn btn-sm" onclick="loadTransactions()">取消</button>`;
+    }
+
+    async function confirmCategory(id) {
+        const select = document.querySelector(`.cat-select[data-id="${id}"]`);
+        if (!select) return;
+        if (select.value === '__new__') {
+            await createCategoryFromSelect(select);
+            return;
+        }
+        const category = select.value;
+        if (!category) { showAlert('请选择一个分类', 'error'); return; }
+        try {
+            await jsonRequest(`/api/transactions/${id}/category`, 'PUT', { category });
+            showAlert('分类更新成功', 'success');
+            loadTransactions();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('分类更新失败: ' + err.message, 'error');
+        }
+    }
+
+    async function resetCategory(id) {
+        if (!confirm('确定撤销这笔交易的人工分类吗？')) return;
+        try {
+            await jsonRequest(`/api/transactions/${encodeURIComponent(id)}/category`, 'DELETE');
+            showAlert('已撤销分类', 'success');
+            loadTransactions();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('撤销失败: ' + err.message, 'error');
+        }
+    }
+
+    // 按商户批量分类
+    async function batchClassifyMerchant(merchantName) {
+        if (!merchantName || merchantName === '-') {
+            showAlert('该交易没有商户信息', 'error');
+            return;
+        }
+
+        // 先查一下该商户有多少笔
+        let count = 0;
+        try {
+            const res = await fetch(`/api/transactions?merchant=${encodeURIComponent(merchantName)}&per_page=1&exact_merchant=true`);
+            const data = await res.json();
+            count = data.total || 0;
+        } catch (e) {}
+
+        const category = prompt(
+            `商户「${merchantName}」共有 ${count} 笔交易。\n` +
+            `请输入要统一设置的分类（如：餐饮、交通、购物）：\n\n` +
+            `提示：也可以用"一级/二级"格式，比如"餐饮/咖啡"`,
+            ''
+        );
+        if (category === null) return;
+        const trimmed = category.trim();
+        if (!trimmed) {
+            showAlert('请输入分类名称', 'error');
+            return;
+        }
+
+        if (!confirm(`确定将「${merchantName}」的全部 ${count} 笔交易分类为「${trimmed}」？\n\n同时会添加分类规则，以后该商户的新交易会自动归类。`)) return;
+
+        try {
+            const res = await jsonRequest('/api/merchants/batch-classify', 'POST', {
+                merchant: merchantName,
+                category: trimmed,
+            });
+            showAlert(`已将商户「${merchantName}」的 ${res.count || 0} 笔交易分类为「${trimmed}」`, 'success');
+            loadTransactions();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('批量分类失败: ' + err.message, 'error');
+        }
+    }
+
+    async function deleteTransaction(id) {
+        if (!confirm('确定删除这笔交易吗？')) return;
+        try {
+            await jsonRequest(`/api/transactions/${encodeURIComponent(id)}`, 'DELETE');
+            showAlert('已删除', 'success');
+            loadTransactions();
+        } catch (err) {
+            showAlert('删除失败: ' + err.message, 'error');
+        }
+    }
+
+    // ===== 语音输入 =====
+    let recognition = null;
+    let voiceResult = null;
+
+    function initSpeechRecognition() {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            showAlert('您的浏览器不支持语音识别，请使用 Chrome 浏览器', 'error');
+            return null;
+        }
+        const sr = new SpeechRecognition();
+        sr.lang = 'zh-CN';
+        sr.continuous = false;
+        sr.interimResults = false;
+        sr.maxAlternatives = 1;
+        return sr;
+    }
+
+    document.getElementById('btn-voice-input').addEventListener('click', () => {
+        const dialog = document.getElementById('voice-dialog');
+        dialog.style.display = dialog.style.display === 'none' ? 'block' : 'none';
+        if (dialog.style.display === 'block') {
+            recognition = initSpeechRecognition();
+            document.getElementById('voice-status').textContent = '点击按钮开始录音';
+            document.getElementById('voice-result').style.display = 'none';
+            document.getElementById('btn-confirm-voice').disabled = true;
+            voiceResult = null;
+        }
+    });
+
+    function parseVoiceText(text) {
+        // 简单解析逻辑：尝试识别金额、商户、方向
+        const result = { description: text, amount: 0, direction: 'expense', merchant: '' };
+
+        // 提取金额
+        const amountMatch = text.match(/(\d+(?:\.\d+)?)\s*元/);
+        if (amountMatch) result.amount = parseFloat(amountMatch[1]);
+
+        // 判断方向
+        if (/到账|收入|工资|奖金|收款|入账/.test(text)) {
+            result.direction = 'income';
+        } else if (/花了|支付|付款|消费|支出|买了|缴费/.test(text)) {
+            result.direction = 'expense';
+        }
+
+        // 提取商户 - 找金额前面的名词
+        const parts = text.split(/花了|支付|付款|到账|收入|买了/);
+        if (parts.length > 0) {
+            // 取第一个部分去掉时间词
+            let merchantPart = parts[0].replace(/今天|明天|昨天|早上|中午|晚上|上午|下午|月|日|号/g, '').trim();
+            if (merchantPart && merchantPart.length < 20) result.merchant = merchantPart;
+        }
+
+        return result;
+    }
+
+    document.getElementById('btn-start-recording').addEventListener('click', () => {
+        if (!recognition) {
+            recognition = initSpeechRecognition();
+            if (!recognition) return;
+        }
+        const status = document.getElementById('voice-status');
+        const btn = document.getElementById('btn-start-recording');
+        try {
+            recognition.onresult = function (event) {
+                const transcript = event.results[0][0].transcript;
+                status.textContent = '识别完成';
+                document.getElementById('voice-text').textContent = transcript;
+                document.getElementById('voice-result').style.display = 'block';
+                btn.textContent = '🎤 重新录音';
+
+                voiceResult = parseVoiceText(transcript);
+                document.getElementById('btn-confirm-voice').disabled = false;
+            };
+            recognition.onerror = function (event) {
+                status.textContent = '识别失败: ' + event.error + ' 请重试';
+                btn.textContent = '🎤 开始录音';
+            };
+            recognition.onend = function () {
+                btn.textContent = '🎤 开始录音';
+            };
+            recognition.start();
+            status.textContent = '正在录音...';
+            btn.textContent = '🔴 录音中...';
+        } catch (e) {
+            status.textContent = '启动失败: ' + e.message;
+        }
+    });
+
+    document.getElementById('btn-confirm-voice').addEventListener('click', async () => {
+        if (!voiceResult || !voiceResult.description) return;
+        const now = new Date();
+        const datetime = now.getFullYear() + '-' +
+            String(now.getMonth() + 1).padStart(2, '0') + '-' +
+            String(now.getDate()).padStart(2, '0') + ' ' +
+            String(now.getHours()).padStart(2, '0') + ':' +
+            String(now.getMinutes()).padStart(2, '0') + ':00';
+        const date = datetime.slice(0, 10);
+        const txn = {
+            datetime: datetime,
+            date: date,
+            year_month: date.slice(0, 7),
+            amount: voiceResult.amount || 0,
+            direction: voiceResult.direction || 'expense',
+            merchant: voiceResult.merchant || '语音输入',
+            description: voiceResult.description,
+            source: 'voice',
+        };
+        try {
+            const res = await jsonRequest('/api/import', 'POST', {
+                transactions: [txn],
+                filename: '语音输入',
+                source: 'voice',
+            });
+            showAlert(`语音交易已添加（${res.imported} 条）`, 'success');
+            document.getElementById('voice-dialog').style.display = 'none';
+            loadTransactions();
+            updatePendingBadge();
+        } catch (err) {
+            showAlert('添加失败: ' + err.message, 'error');
+        }
+    });
+
+    document.getElementById('btn-cancel-voice').addEventListener('click', () => {
+        document.getElementById('voice-dialog').style.display = 'none';
+        if (recognition) { try { recognition.abort(); } catch (e) {} }
+    });
+
+    // ── 导入功能 ──
+    document.getElementById('btn-show-import').addEventListener('click', () => {
+        document.getElementById('import-dialog').style.display = 'block';
+    });
+    document.getElementById('btn-hide-import').addEventListener('click', () => {
+        document.getElementById('import-dialog').style.display = 'none';
+    });
+    document.getElementById('btn-import-json').addEventListener('click', async () => {
+        const textarea = document.getElementById('import-json');
+        const resultDiv = document.getElementById('import-result');
+        let txns;
+        try {
+            txns = JSON.parse(textarea.value);
+            if (!Array.isArray(txns)) throw new Error('需要 JSON 数组');
+        } catch (e) {
+            resultDiv.innerHTML = `<span style="color: red;">JSON 解析失败: ${e.message}</span>`;
+            return;
+        }
+        try {
+            const res = await jsonRequest('/api/import', 'POST', {
+                transactions: txns,
+                filename: '手动导入',
+                source: 'manual'
+            });
+            resultDiv.innerHTML = `<span style="color: green;">成功导入 ${res.imported} 条交易</span>`;
+            textarea.value = '';
+            loadTransactions();
+            updatePendingBadge();
+        } catch (err) {
+            resultDiv.innerHTML = `<span style="color: red;">导入失败: ${err.message}</span>`;
+        }
+    });
+
+    // 页面初始化
+    document.addEventListener('DOMContentLoaded', function () {
+        // 月份选择器默认留空（跟随全局账期）；用户手动选月份时以月份为准
+        document.getElementById('filter-month').value = '';
+        loadCategoryOptions();
+        loadTransactions();
+
+        document.getElementById('btn-filter').addEventListener('click', () => { currentPage = 1; loadTransactions(); });
+        document.getElementById('btn-prev').addEventListener('click', () => { if (currentPage > 1) { currentPage--; loadTransactions(); } });
+        document.getElementById('btn-next').addEventListener('click', () => { currentPage++; loadTransactions(); });
+
+        // 全局账期变化时刷新（若用户手动选了月份则不覆盖）
+        window.addEventListener('global-range-changed', () => {
+            if (!document.getElementById('filter-month').value) {
+                currentPage = 1;
+                loadTransactions();
+            }
+        });
+    });
+</script>
+{% endblock %}
