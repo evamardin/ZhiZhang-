@@ -120,7 +120,7 @@
 
 ```bash
 # 1. 克隆项目
-git clone https://github.com/<your-name>/ZhiZhang.git
+git clone https://github.com/evamardin/ZhiZhang-.git
 cd ZhiZhang
 
 # 2. 安装依赖
